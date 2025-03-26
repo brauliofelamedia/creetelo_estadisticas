@@ -1,0 +1,11 @@
+# Archivo .htaccess en la raíz del proyecto Laravel (fuera de public)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Redirigir todas las solicitudes al directorio public
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# Prevenir listado de directorios
+Options -Indexes
