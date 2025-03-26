@@ -97,7 +97,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-12 mt-3">
+                        <div class="col-6 mt-3">
                             <div class="card bg-primary bg-opacity-10">
                                 <div class="card-body">
                                     <h6>Ingresos totales</h6>
@@ -105,12 +105,11 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-12 mt-3">
+                        <div class="col-6 mt-3">
                             <div class="card bg-danger bg-opacity-10">
                                 <div class="card-body">
                                     <h6>Churn Rate (Tasa de cancelación)</h6>
                                     <h5>{{ number_format($totalStats['churn_rate'], 2) }}%</h5>
-                                    <small class="text-muted">Porcentaje de clientes perdidos sobre el total</small>
                                 </div>
                             </div>
                         </div>
