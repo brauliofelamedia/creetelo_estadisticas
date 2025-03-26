@@ -14,8 +14,7 @@ use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 use App\Models\User;
 use App\Mail\WelcomeMail;
-use App\Services\Subscriptions;
-use App\Services\Transactions;
+use Illuminate\Support\Facades\Artisan;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -37,6 +36,13 @@ Route::get('/email/preview', function () {
 
 Route::middleware('auth')->prefix('dashboard')->group(function () {
     Route::get('/', [AdminController::class, 'index'])->name('admin.index');
+
+    //Create storage and optimize
+    Route::get('/create-storage-and-optimize', function () {
+        Artisan::call('storage:link');
+        Artisan::call('optimize:clear');
+        return 'Storage link creado exitosamente y limpiado el cache';
+    });
 
     //Config
     Route::post('config/media', [ConfigController::class, 'media'])->name('config.media');
