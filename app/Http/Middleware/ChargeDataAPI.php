@@ -13,6 +13,9 @@ use Nnjeim\World\Models\Country;
 use App\Models\Config;
 use Exception;
 use GuzzleHttp\Client;
+use App\Jobs\GenerateContactsJson;
+use App\Jobs\GenerateSubscriptionsJson;
+use App\Jobs\GenerateTransactionsJson;
 
 class ChargeDataAPI
 {
@@ -28,9 +31,9 @@ class ChargeDataAPI
     public function handle(Request $request, Closure $next): Response
     {
         //Charge JSON
-        $contactsData = $this->getContactsFromFileNew();
-        $transactionsData = $this->getTransactionsFromFileNew();
-        $subscriptionsData = $this->getSubscriptionsFromFileNew();
+        $contactsData = $this->getContactsFromFile();
+        $transactionsData = $this->getTransactionsFromFile();
+        $subscriptionsData = $this->getSubscriptionsFromFile();
         
         $countriesData = Country::all();
 
@@ -44,45 +47,80 @@ class ChargeDataAPI
         return $next($request);
     }
 
+    private function getContactsFromFile()
+    {
+        $filePath = storage_path('app/contacts.json');
+        $cacheExpiration = 10800;
+
+        // If file doesn't exist, create an empty contacts.json file
+        if (!file_exists($filePath)) {
+            file_put_contents($filePath, json_encode([]));
+        }
+
+        $fileContent = file_get_contents($filePath);
+        $jsonData = json_decode($fileContent, true);
+
+        // Verificar si hay un job en proceso consultando el cache
+        $jobInProgress = cache()->get('generating_contacts_json');
+
+        if (!$jobInProgress && (empty($jsonData) || $this->shouldUpdateContacts($filePath, $cacheExpiration))) {
+            cache()->put('generating_contacts_json', true, 3600); // Cache por 1 hora
+            GenerateContactsJson::dispatch();
+        }
+
+        return collect(json_decode(file_get_contents($filePath), true))
+            ->map(fn($item) => (object) $item);
+    }
+
     private function getSubscriptionsFromFile()
     {
         $filePath = storage_path('app/subscriptions.json');
-        $cacheExpiration = 10800; // 3 hours in seconds
+        $cacheExpiration = 10800;
         
-        // Ensure storage directory exists
         if (!file_exists(storage_path('app'))) {
             mkdir(storage_path('app'), 0755, true);
         }
 
-        // Get cached contacts first
-        $contactsPath = storage_path('app/contacts.json');
-        if (!file_exists($contactsPath)) {
-            throw new Exception('Contacts file not found. Please refresh contacts first.');
+        if (!file_exists($filePath)) {
+            file_put_contents($filePath, json_encode([]));
         }
 
-        $contacts = collect(json_decode(file_get_contents($contactsPath), true));
+        $fileContent = file_get_contents($filePath);
+        $jsonData = json_decode($fileContent, true);
 
-        if ($this->shouldUpdateSubscriptions($filePath, $cacheExpiration) || !file_exists($filePath)) {
-            $allSubscriptions = collect();
-            
-            // Read all subscriptions from a master file
-            $subscriptions = new Subscriptions();
-            $response = $subscriptions->get('', '2000', Carbon::now()->year);
-            $subscriptionsData = collect(json_decode(json_encode($response->getData()), true)['data']);
+        // Verificar si hay un job en proceso consultando el cache
+        $jobInProgress = cache()->get('generating_subscriptions_json');
 
-            foreach ($contacts as $contact) {
-                // Filter subscriptions for current contact
-                $contactSubscriptions = $subscriptionsData->filter(function($subscription) use ($contact) {
-                    return $subscription['contactId'] === $contact['id'];
-                });
-                
-                if ($contactSubscriptions->isNotEmpty()) {
-                    $allSubscriptions = $allSubscriptions->concat($contactSubscriptions);
-                }
-            }
+        if (!$jobInProgress && (empty($jsonData) || $this->shouldUpdateSubscriptions($filePath, $cacheExpiration))) {
+            GenerateSubscriptionsJson::dispatch();
+        }
 
-            file_put_contents($filePath, json_encode($allSubscriptions->toArray(), JSON_PRETTY_PRINT));
-            return $allSubscriptions;
+        return collect(json_decode(file_get_contents($filePath), true))
+            ->map(fn($item) => (object) $item);
+    }
+
+    private function getTransactionsFromFile()
+    {
+        $filePath = storage_path('app/transactions.json');
+        $cacheExpiration = 10800;
+        
+        if (!file_exists(storage_path('app'))) {
+            mkdir(storage_path('app'), 0755, true);
+        }
+
+        if (!file_exists($filePath)) {
+            file_put_contents($filePath, json_encode([]));
+        }
+
+        // Check if file is empty, smaller than 1MB or cache expired
+        $fileContent = file_get_contents($filePath);
+        $jsonData = json_decode($fileContent, true);
+
+        // Verificar si hay un job en proceso consultando el cache
+        $jobInProgress = cache()->get('generating_transactions_json');
+        
+        if (!$jobInProgress && (empty($jsonData) || $this->shouldUpdateTransactions($filePath, $cacheExpiration))) {
+            GenerateTransactionsJson::dispatch();
         }
 
         return collect(json_decode(file_get_contents($filePath), true))
@@ -118,103 +156,9 @@ class ChargeDataAPI
             ->map(fn($item) => (object) $item);
     }
 
-    private function getTransactionsFromFile()
-    {
-        $filePath = storage_path('app/transactions.json');
-        $cacheExpiration = 10800;
-        
-        // Ensure storage directory exists
-        if (!file_exists(storage_path('app'))) {
-            mkdir(storage_path('app'), 0755, true);
-        }
-
-        if ($this->shouldUpdateTransactions($filePath, $cacheExpiration) || !file_exists($filePath)) {
-            $transactions = new Transactions();
-            $allTransactions = collect();
-            
-            // Get cached contacts first
-            $contactsPath = storage_path('app/contacts.json');
-            if (!file_exists($contactsPath)) {
-                throw new Exception('Contacts file not found. Please refresh contacts first.');
-            }
-            
-            $contacts = collect(json_decode(file_get_contents($contactsPath), true));
-            
-            foreach ($contacts as $contact) {
-            $response = $transactions->get(0, $contact['id']);
-            $pageData = json_decode(json_encode(response()->json(['data' => $response])->getData()), true);
-            
-            if (isset($pageData['data']['original']['data'])) {
-                $contactTransactions = collect($pageData['data']['original']['data']);
-                
-                // Filter out duplicates based on _id
-                $newTransactions = $contactTransactions->filter(function($transaction) use ($allTransactions) {                    
-                    $isValidSourceType = isset($transaction['entitySourceType']) && 
-                        $transaction['entitySourceType'] === 'membership';
-                    
-                    return !$allTransactions->contains('_id', $transaction['_id']) && $isValidSourceType;
-                });
-                
-                $allTransactions = $allTransactions->concat($newTransactions);
-            }
-            }
-
-            file_put_contents($filePath, json_encode($allTransactions->toArray(), JSON_PRETTY_PRINT));
-            return $allTransactions;
-        }
-
-        return collect(json_decode(file_get_contents($filePath), true))
-            ->map(fn($item) => (object) $item);
-    }
-
     private function shouldUpdateTransactions($filePath, $expiration): bool
     {
         return !file_exists($filePath) || (time() - filemtime($filePath) > $expiration);
-    }
-
-    private function getContactsFromFile()
-    {
-        $filePath = storage_path('app/contacts.json');
-        $cacheExpiration = 10800;
-
-        // If file doesn't exist, force creation regardless of cache expiration
-        if (!file_exists($filePath) || $this->shouldUpdateContacts($filePath, $cacheExpiration)) {
-            $contacts = new Contacts();
-            $response = $contacts->get(0);
-            $totalCount = json_decode(json_encode(response()->json(['data' => $response])->getData()), true)['data']['total'];
-            $numberPage = (int)ceil($totalCount / 100);
-            $countriesData = Country::all();
-
-            $allContacts = collect();
-            for ($i = 0; $i < $numberPage; $i++) {
-                $contacts = new Contacts();
-                $response = $contacts->get($i);
-                $pageData = json_decode(json_encode(response()->json(['data' => $response])->getData()), true);
-
-                if (isset($pageData['data']['contacts']) && !empty($pageData['data']['contacts'])) {
-                    $contactsCollect = collect($pageData['data']['contacts']);
-                    $allContacts = $allContacts->concat($contacts);
-                    $countriesCollect = collect($countriesData);
-
-                    $contacts = $contactsCollect->map(function($contact) use ($countriesCollect) {
-                        $contact['countryName'] = $countriesCollect->where('iso2', $contact['country'])->first()['name'] ?? $contact['country'];
-                        return $contact;
-                    });
-                    $allContacts = $allContacts->concat($contacts);
-                }
-            }
-
-            // Ensure storage directory exists
-            if (!file_exists(storage_path('app'))) {
-                mkdir(storage_path('app'), 0755, true);
-            }
-
-            file_put_contents($filePath, json_encode($allContacts->toArray(), JSON_PRETTY_PRINT));
-            return $allContacts;
-        }
-
-        return collect(json_decode(file_get_contents($filePath), true))
-            ->map(fn($item) => (object) $item);
     }
 
     private function shouldUpdateContacts($filePath, $expiration): bool

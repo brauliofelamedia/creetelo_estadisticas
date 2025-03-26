@@ -4,6 +4,10 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use App\Services\Transactions;
+use App\Services\Subscriptions;
+use App\Services\Contacts;
+use Nnjeim\World\Models\Country;
 
 class FilterController extends Controller
 {
@@ -532,6 +536,183 @@ class FilterController extends Controller
             if (!empty($processedData)) {
                 $this->projectedData[$source] = $this->calculateProjections($processedData);
             }
+        }
+    }
+
+    public function updateAllJSON()
+    {
+        $this->updateContacts();
+        $this->updateSubscriptions();
+        $this->updateTransactions();
+    }
+
+    private function updateContacts()
+    {
+        try {
+            $filePath = storage_path('app/contacts.json');
+            $contactsService = new Contacts();
+            $response = $contactsService->get(0);
+            $responseData = json_decode(json_encode(response()->json(['data' => $response])->getData()), true);
+            $totalCount = $responseData['data']['total'];
+            $numberPage = (int)ceil($totalCount / 100);
+            $countriesData = Country::all();
+
+            if (!file_exists(storage_path('app'))) {
+                mkdir(storage_path('app'), 0755, true);
+            }
+
+            $handle = fopen($filePath . '.temp', 'w');
+            fwrite($handle, "[");
+
+            $firstItem = true;
+            for ($i = 0; $i < $numberPage; $i++) {
+                $response = $contactsService->get($i);
+                $pageData = json_decode(json_encode(response()->json(['data' => $response])->getData()), true);
+
+                if (isset($pageData['data']['contacts']) && !empty($pageData['data']['contacts'])) {
+                    $contactsCollect = collect($pageData['data']['contacts']);
+                    $batch = $contactsCollect->map(function($contact) use ($countriesData) {
+                        $country = collect($countriesData)->firstWhere('iso2', $contact['country']);
+                        $contact['countryName'] = isset($country['name']) ? $country['name'] : $contact['country'];
+                        return $contact;
+                    })->toArray();
+
+                    foreach ($batch as $contact) {
+                        if (!$firstItem) {
+                            fwrite($handle, ",\n");
+                        } else {
+                            $firstItem = false;
+                        }
+                        fwrite($handle, json_encode($contact, JSON_PRETTY_PRINT));
+                    }
+
+                    fflush($handle);
+                    unset($batch);
+                }
+            }
+
+            fwrite($handle, "\n]");
+            fclose($handle);
+
+            // Atomic rename of the temp file to the final file
+            rename($filePath . '.temp', $filePath);
+
+            // Al finalizar, eliminar la marca de cache
+            cache()->forget('generating_contacts_json');
+        } catch (\Exception $e) {
+            // En caso de error, también eliminar la marca
+            cache()->forget('generating_contacts_json');
+            throw $e;
+        }
+    }
+
+    private function updateSubscriptions()
+    {
+        try {
+            $filePath = storage_path('app/subscriptions.json');
+            $subscriptions = new Subscriptions();
+            
+            $response = $subscriptions->get(0);
+            $responseData = json_decode(json_encode(response()->json(['data' => $response])->getData()), true);
+            $totalCount = $responseData['data']['original']['totalCount'];
+            $numberPage = (int)ceil($totalCount / 100);
+    
+            if (!file_exists(storage_path('app'))) {
+                mkdir(storage_path('app'), 0755, true);
+            }
+    
+            $handle = fopen($filePath . '.temp', 'w');
+            fwrite($handle, "[");
+    
+            $firstItem = true;
+            for ($i = 0; $i < $numberPage; $i++) {
+                $response = $subscriptions->get($i);
+                $pageData = json_decode(json_encode(response()->json(['data' => $response])->getData()), true);
+    
+                if (isset($pageData['data']['original']['data']) && !empty($pageData['data']['original']['data'])) {
+                    $batch = collect($pageData['data']['original']['data'])->toArray();
+    
+                    foreach ($batch as $transaction) {
+                        if (!$firstItem) {
+                            fwrite($handle, ",\n");
+                        } else {
+                            $firstItem = false;
+                        }
+                        fwrite($handle, json_encode($transaction, JSON_PRETTY_PRINT));
+                    }
+    
+                    fflush($handle);
+                    unset($batch);
+                }
+            }
+    
+            fwrite($handle, "\n]");
+            fclose($handle);
+    
+            // Atomic rename of the temp file to the final file
+            rename($filePath . '.temp', $filePath);
+    
+            // Remove cache flag when finished
+            cache()->forget('generating_subscriptions_json');
+        } catch (\Exception $e) {
+            // Remove cache flag in case of error
+            cache()->forget('generating_subscriptions_json');
+            throw $e;
+        }
+    }
+
+    private function updateTransactions()
+    {
+        try {
+            $filePath = storage_path('app/transactions.json');
+            $transactions = new Transactions();
+            
+            $response = $transactions->get(0);
+            $responseData = json_decode(json_encode(response()->json(['data' => $response])->getData()), true);
+            $totalCount = $responseData['data']['original']['totalCount'];
+            $numberPage = (int)ceil($totalCount / 100);
+
+            if (!file_exists(storage_path('app'))) {
+                mkdir(storage_path('app'), 0755, true);
+            }
+
+            $handle = fopen($filePath . '.temp', 'w');
+            fwrite($handle, "[");
+
+            $firstItem = true;
+            for ($i = 0; $i < $numberPage; $i++) {
+                $response = $transactions->get($i);
+                $pageData = json_decode(json_encode(response()->json(['data' => $response])->getData()), true);
+
+                if (isset($pageData['data']['original']['data']) && !empty($pageData['data']['original']['data'])) {
+                    $batch = collect($pageData['data']['original']['data'])->toArray();
+
+                    foreach ($batch as $transaction) {
+                        if (!$firstItem) {
+                            fwrite($handle, ",\n");
+                        } else {
+                            $firstItem = false;
+                        }
+                        fwrite($handle, json_encode($transaction, JSON_PRETTY_PRINT));
+                    }
+
+                    fflush($handle);
+                    unset($batch);
+                }
+            }
+
+            fwrite($handle, "\n]");
+            fclose($handle);
+
+            // Atomic rename of the temp file to the final file
+            rename($filePath . '.temp', $filePath);
+
+            // Remove cache flag when finished
+            cache()->forget('generating_transactions_json');
+        } catch (\Exception $e) {
+            // Remove cache flag in case of error
+            cache()->forget('generating_transactions_json');
+            throw $e;
         }
     }
 }

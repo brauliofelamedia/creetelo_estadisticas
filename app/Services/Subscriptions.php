@@ -30,7 +30,7 @@ class Subscriptions
         ]);
     }
 
-    public function get($contactId)
+    public function get($offset = 0)
     {
         try {
             // Realizar la solicitud GET
@@ -43,10 +43,9 @@ class Subscriptions
                 'query' => [
                     'altId' => $this->config->location_id,
                     'altType' => 'location',
-                    //'limit' => 100,
+                    'limit' => 100,
                     'paymentMode' => 'live',
-                    //'offset' => $offset,
-                    'contactId' => $contactId,
+                    'offset' => $offset,
                 ],
             ]);
 

@@ -14,9 +14,11 @@ use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 use App\Models\User;
 use App\Mail\WelcomeMail;
+use App\Services\Subscriptions;
+use App\Services\Transactions;
 
 Route::get('/', function () {
-    return view('welcome');
+    
 });
 
 Route::get('login', [AuthController::class, 'loginForm'])->name('login');
@@ -85,7 +87,7 @@ Route::middleware('auth')->prefix('dashboard')->group(function () {
         Route::get('month',[FilterController::class,'comparationForMonth'])->name('filters.month');
         Route::get('projection',[FilterController::class,'projection'])->name('filters.projection');
         Route::get('subscriptions',[FilterController::class,'subscriptions'])->name('filters.subscriptions');
-        //Route::get('projection',[FilterController::class,'calculateProjection'])->name('filters.projection.calculate');
+        Route::get('updateAllJson',[FilterController::class,'updateAllJSON'])->name('update.json');
     });
 });
 

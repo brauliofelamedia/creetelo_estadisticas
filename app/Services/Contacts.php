@@ -47,7 +47,7 @@ class Contacts {
             'locationId' => $this->config->location_id,
             'page' => $page,
             'pageLimit' => 100,
-            'filters' => $filters,
+            //'filters' => $filters,
         ];
 
         try {

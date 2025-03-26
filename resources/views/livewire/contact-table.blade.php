@@ -31,7 +31,7 @@
                     <th class="d-none d-md-table-cell">Correo</th>
                     <th>País</th>
                     <th class="d-none d-md-table-cell">Última Actualización</th>
-                    <th>Acciones</th>
+                    <th style="display: none;">Acciones</th>
                 </tr>
             </thead>
             <tbody>
@@ -51,7 +51,7 @@
                         <td class="d-none d-md-table-cell">{{ $contact->email }}</td>
                         <td>{{ $contact->countryName }}</td>
                         <td class="d-none d-md-table-cell">{{ \Carbon\Carbon::parse($contact->dateAdded)->diffForHumans() }}</td>
-                        <td>
+                        <td style="display: none;">
                             <div class="btn-group" role="group">
                                 <a href="#" class="btn btn-sm btn-primary" title="Editar">
                                     <iconify-icon icon="mdi:pencil" class="menu-icon"></iconify-icon>

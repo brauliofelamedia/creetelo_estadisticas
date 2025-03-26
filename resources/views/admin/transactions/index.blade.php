@@ -17,7 +17,18 @@
     </div>
 
     <div class="card basic-data-table">
+        @php
+            $updating = file_exists(storage_path('app/transactions.json.temp'));
+        @endphp
       <div class="card-body">
+            @if($updating)
+                <div class="alert alert-warning">
+                    <div class="spinner-border spinner-border-sm" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                    Estamos actualizando las transacciones, por favor espere...
+                </div>
+            @endif
           @livewire('transaction-table')
       </div>
     </div>

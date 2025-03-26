@@ -29,7 +29,7 @@ class Transactions
         ]);
     }
 
-    public function get($offset = 0, $contact_id = null)
+    public function get($offset = 0)
     {
         try {
             // Realizar la solicitud GET
@@ -44,9 +44,7 @@ class Transactions
                     'altType' => 'location',
                     'limit' => 100,
                     'paymentMode' => 'live',
-                    //'entitySourceType' => 'membership',
                     'offset' => $offset,
-                    'contactId' => $contact_id
                 ],
             ]);
 
