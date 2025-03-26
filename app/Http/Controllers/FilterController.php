@@ -366,7 +366,10 @@ class FilterController extends Controller
             'incomplete_expired_count' => $subscriptions->where('status', 'incomplete_expired')->count(),
             'canceled_count' => $subscriptions->where('status', 'canceled')->count(),
             'past_due_count' => $subscriptions->where('status', 'past_due')->count(),
-            'total_amount' => $subscriptions->where('status', 'active')->sum('amount')
+            'total_amount' => $subscriptions->where('status', 'active')->sum('amount'),
+            'churn_rate' => $subscriptions->count() > 0 
+                ? ($subscriptions->where('status', 'canceled')->count() / $subscriptions->count()) * 100
+                : 0
         ];
 
         return view('admin.filters.subscriptions', [
