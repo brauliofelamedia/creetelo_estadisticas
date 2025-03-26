@@ -18,7 +18,7 @@ use App\Services\Subscriptions;
 use App\Services\Transactions;
 
 Route::get('/', function () {
-    
+    return redirect()->route('login');
 });
 
 Route::get('login', [AuthController::class, 'loginForm'])->name('login');
