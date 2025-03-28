@@ -26,10 +26,6 @@ use Carbon\Carbon;
 use Nnjeim\World\Models\Country;
 
 Route::get('/', function(){
-    $contacts = new Contacts();
-    $contacts = $contacts->get();
-    $total = $contacts['total'];
-    dd($contacts);
     return redirect()->route('login');
 });
 
