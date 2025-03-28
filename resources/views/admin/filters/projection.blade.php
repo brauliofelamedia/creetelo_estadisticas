@@ -16,7 +16,7 @@
     </div>
 
     <div class="row">
-        <div class="col-3">
+        <div class="col-lg-3">
             <div class="card">
                 <div class="card-header">
                     <h6 class="card-title mb-0">Seleccionar período de proyección</h6>
@@ -48,7 +48,11 @@
                                             </label>
                                     </div>
                                 @endforeach
-                                <button type="submit" class="btn btn-primary" style="width: 100%;">Calcular Proyección</button>
+                                <div class="d-flex gap-2 mb-3">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" style="width:100%;" id="selectAll">Seleccionar</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" style="width:100%;" id="deselectAll">Deseleccionar</button>
+                                </div>
+                                <button type="submit" class="btn btn-primary" style="width: 100%;">Calcular proyección</button>
                             </div>
                         </div>
                     </form>
@@ -57,7 +61,7 @@
         </div>
 
         @if(isset($historicalData))
-            <div class="col-9">
+            <div class="col-lg-9">
                 @foreach($historicalData as $sourceName => $sourceData)
                 <div class="card mt-4">
                     <div class="card-header">
@@ -175,6 +179,19 @@
 </div>
 @endsection
 
+@push('scripts')
+<script>
+    $(document).ready(function() {
+        $('#selectAll').click(function() {
+            $('input[name="sources[]"]').prop('checked', true);
+        });
+        
+        $('#deselectAll').click(function() {
+            $('input[name="sources[]"]').prop('checked', false);
+        });
+    });
+    </script>
+@endpush
 
 @push('css')
 <style>

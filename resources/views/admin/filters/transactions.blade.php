@@ -16,26 +16,20 @@
     </div>
 
     <div class="row">
-        <div class="col-3">
+        <div class="col-lg-3">
             <div class="card">
                 <div class="card-header"><h6 class="mb-0">Filtros</h6></div>
                 <div class="card-body">
                     <form method="get" action="{{route('filters')}}">
                         <div class="row">
                             <div class="col-12">
-                                <div class="row">
-                                    <div class="col-6">
-                                        <div class="form-group mb-3">
-                                            <label class="label-bold">Fecha inicial</label>
-                                            <input type="date" name="start_date" class="form-control" value="{{ request('start_date', \Carbon\Carbon::now()->startOfWeek()->format('Y-m-d')) }}">
-                                        </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="form-group mb-3">
-                                            <label class="label-bold">Fecha final</label>
-                                            <input type="date" name="end_date" class="form-control" value="{{ request('end_date', \Carbon\Carbon::now()->endOfWeek()->format('Y-m-d')) }}">
-                                        </div>
-                                    </div>
+                                <div class="form-group mb-3">
+                                    <label class="label-bold">Fecha inicial</label>
+                                    <input type="date" name="start_date" class="form-control" value="{{ request('start_date', \Carbon\Carbon::now()->startOfWeek()->format('Y-m-d')) }}">
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label class="label-bold">Fecha final</label>
+                                    <input type="date" name="end_date" class="form-control" value="{{ request('end_date', \Carbon\Carbon::now()->endOfWeek()->format('Y-m-d')) }}">
                                 </div>
                                 <label class="label-bold">Membresías</label>
                                 @foreach($sources as $key => $source)
@@ -51,15 +45,20 @@
                                             </label>
                                     </div>
                                 @endforeach
+                                <div class="d-flex gap-2 mb-3">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" style="width:100%;" id="selectAll">Seleccionar</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" style="width:100%;" id="deselectAll">Deseleccionar</button>
+                                </div>
                             </div>
                         </div>
+                        
                         <button type="submit" class="btn btn-primary" style="width:100%;">Filtrar</button>
                     </form>
                     
                 </div>
             </div>
         </div>
-        <div class="col-9">
+        <div class="col-lg-9">
             <div class="card">
                 <div class="card-header">
                     <h6 class="mb-0">Resumen</h6>
@@ -165,6 +164,20 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+<script>
+    $(document).ready(function() {
+        $('#selectAll').click(function() {
+            $('input[name="sources[]"]').prop('checked', true);
+        });
+        
+        $('#deselectAll').click(function() {
+            $('input[name="sources[]"]').prop('checked', false);
+        });
+    });
+    </script>
+@endpush
 
 @push('css')
 <style>

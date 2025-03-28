@@ -53,7 +53,7 @@ class ContactController extends Controller
 
         // Get paginated results
         $contacts = $query->paginate(30);
-
-        return view('admin.contact.index', compact('contacts', 'countries'));
+        
+        return view('admin.contact.index');
     }
 }

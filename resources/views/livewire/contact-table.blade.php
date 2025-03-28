@@ -30,8 +30,8 @@
                     <th>Nombre</th>
                     <th class="d-none d-md-table-cell">Correo</th>
                     <th>País</th>
+                    <th>Registro</th>
                     <th class="d-none d-md-table-cell">Última Actualización</th>
-                    <th style="display: none;">Acciones</th>
                 </tr>
             </thead>
             <tbody>
@@ -46,24 +46,12 @@
                 @else
                     @foreach($contacts as $contact)
                     <tr>
-                        <td class="d-none d-md-table-cell">{{ $loop->iteration }}</td>
-                        <td>{{ ucfirst($contact->firstNameLowerCase) }} {{ ucfirst($contact->lastNameLowerCase) }}</td>
+                        <td class="d-none d-md-table-cell">{{ $contact->id }}</td>
+                        <td>{{ $contact->fullname }}</td>
                         <td class="d-none d-md-table-cell">{{ $contact->email }}</td>
-                        <td>{{ $contact->countryName }}</td>
-                        <td class="d-none d-md-table-cell">{{ \Carbon\Carbon::parse($contact->dateAdded)->diffForHumans() }}</td>
-                        <td style="display: none;">
-                            <div class="btn-group" role="group">
-                                <a href="#" class="btn btn-sm btn-primary" title="Editar">
-                                    <iconify-icon icon="mdi:pencil" class="menu-icon"></iconify-icon>
-                                </a>
-                                <a href="#" class="btn btn-sm btn-info" title="Ver">
-                                    <iconify-icon icon="mdi:eye" class="menu-icon"></iconify-icon>
-                                </a>
-                                <button wire:click="delete({{ $contact->id }})" class="btn btn-sm btn-danger" title="Eliminar">
-                                    <iconify-icon icon="mdi:delete" class="menu-icon"></iconify-icon>
-                                </button>
-                            </div>
-                        </td>
+                        <td>{{ $contact->country }}</td>
+                        <td>{{ \Carbon\Carbon::parse($contact->date_added)->diffForHumans() }}</td>
+                        <td class="d-none d-md-table-cell">{{ \Carbon\Carbon::parse($contact->date_update)->diffForHumans() }}</td>
                     </tr>
                     @endforeach
                 @endif

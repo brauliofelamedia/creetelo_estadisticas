@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
+
     <div class="dashboard-main-body">
         <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-24">
             <h6 class="fw-semibold mb-0">Dashboard</h6>
@@ -15,6 +16,16 @@
                 <li class="fw-medium">Estadísticas</li>
             </ul>
         </div>
+
+        @if(session()->has('message'))
+            <div class="col-12">
+                <div class="col-12">
+                    <div class="alert alert-success">
+                        {{ session('message') }}
+                    </div>
+                </div>
+            </div>
+       @endif
 
         <div class="row row-cols-xxxl-5 row-cols-lg-3 row-cols-sm-2 row-cols-1 gy-4">
             <div class="col">

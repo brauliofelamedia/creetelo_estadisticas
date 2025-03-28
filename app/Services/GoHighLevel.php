@@ -17,7 +17,7 @@ class GoHighLevel
     public function __construct()
     {
         //Get Config
-        $this->config = Config::where('id',1)->first();
+        $this->config = Config::first();
 
         //Client and Client Secret
         $this->client_id = env('GHL_CLIENT_ID');

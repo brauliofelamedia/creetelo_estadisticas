@@ -71,9 +71,29 @@
   <script src="{{asset('assets/js/lib/file-upload.js')}}"></script>
   <script src="{{asset('assets/js/lib/audioplayer.js')}}"></script>
   <script src="{{asset('assets/js/app.js')}}"></script>
+    <!-- Sweet Alert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   @if(Route::is('admin.index'))
   @endif
   @stack('scripts')
   @livewireScripts
+  <script>
+    function confirmUpdate() {
+        Swal.fire({
+            title: 'Atención',
+            text: "¿Deseas actualizar los datos?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Sí, actualizar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.open("{{ route('sync.start') }}", '_self');
+            }
+        });
+    }
+</script>
 </body>
 </html>

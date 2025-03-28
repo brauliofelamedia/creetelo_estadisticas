@@ -17,7 +17,7 @@ class GoHighLevelController extends Controller
 
     public function __construct()
     {
-        $this->config = Config::where('id', 1)->first();
+        $this->config = Config::first();
         $this->client_id = env('GHL_CLIENT_ID');
         $this->client_secret = env('GHL_CLIENT_SECRET');
         $this->url = route('authorization');

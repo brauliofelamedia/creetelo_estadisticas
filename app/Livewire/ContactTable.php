@@ -53,25 +53,25 @@ class ContactTable extends Component
 
     protected function getFilteredContacts()
     {
-        $contacts = collect(Config('app.contacts.data'));
+        $contacts = Contact::all();
 
         if ($this->country !== '*') {
             $contacts = $contacts->filter(function ($contact) {
-                return $contact->countryName === $this->country;
+                return $contact->country === $this->country;
             });
         }
 
         if ($this->date_filter !== '*') {
             $contacts = $contacts->filter(function ($contact) {
-            $contactDate = Carbon::parse($contact->dateAdded)->format('Y-m-d');
+                $contactDate = Carbon::parse($contact->date_added)->format('Y-m-d');
             return $contactDate >= $this->date_filter;
             });
         }
 
         if ($this->search !== '') {
             $contacts = $contacts->filter(function ($contact) {
-                return str_contains(strtolower($contact->firstNameLowerCase), strtolower($this->search)) ||
-                       str_contains(strtolower($contact->lastNameLowerCase), strtolower($this->search));
+                return str_contains(strtolower($contact->first_name), strtolower($this->search)) ||
+                       str_contains(strtolower($contact->last_name), strtolower($this->search));
             });
         }
 
@@ -102,7 +102,7 @@ class ContactTable extends Component
 
         return view('livewire.contact-table', [
             'contacts' => $contacts,
-            'countries' => collect(collect(Config('app.contacts.data'))->pluck('countryName')->unique()->values())
+            'countries' => Contact::whereNotNull('country')->pluck('country')->unique()->values()
                 ->sort(function ($a, $b) {
                     if ($a === 'United States') return -1;
                     if ($b === 'United States') return 1;

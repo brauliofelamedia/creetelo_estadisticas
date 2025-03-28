@@ -9,6 +9,7 @@ use App\Http\Controllers\GoHighLevelController;
 use App\Http\Controllers\OpportunityController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SubscriptionController;
+use App\Http\Controllers\SyncController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
@@ -22,12 +23,19 @@ use App\Services\Subscriptions;
 use App\Services\Transactions;
 use Illuminate\Support\Facades\Artisan;
 use Carbon\Carbon;
+use Nnjeim\World\Models\Country;
 
-
-Route::get('importContacts', function() {
+Route::get('/', function(){
     $contacts = new Contacts();
     $contacts = $contacts->get();
+    $total = $contacts['total'];
     dd($contacts);
+    return redirect()->route('login');
+});
+
+/*Route::get('importContacts', function() {
+    $contacts = new Contacts();
+    $contacts = $contacts->get();
     $total = $contacts['total'];
     
     $pagination = ceil($total / 100);
@@ -80,6 +88,20 @@ Route::get('importTransactionsNEW', function(){
         $data = collect($transactions->getData());
 
         foreach($data['data'] as $item){
+
+            if ($item->entitySourceType != 'membership') {
+                continue;
+            }
+
+            if (!in_array($item->amount, [39, 390])) {
+                continue;
+            }
+
+            // Skip if transaction already exists
+            if (Transaction::where('_id', $item->_id)->exists()) {
+                continue;
+            }
+            
             $trans = new Transaction();
             $trans->_id = $item->_id ?? '';
             $trans->contactId = $item->contactId ?? '';
@@ -100,8 +122,6 @@ Route::get('importTransactionsNEW', function(){
             $trans->create_time = Carbon::parse($item->createdAt)->format('Y-m-d');
             $trans->contact_id = $contact->id ?? null;
             $trans->save();
-
-            echo $item->createdAt . '<br>';
         }
     }
 })->name('import.transactions');
@@ -121,26 +141,37 @@ Route::get('importSubscriptions', function() {
         $subscriptions = new Subscriptions();
         $subscriptions = $subscriptions->get($offset);
         $data = collect($subscriptions->getData());
-        dd($data);
 
         foreach ($data['data'] as $item) {
 
-            $contactCheck = Contact::where('contact_id', $item->contactId)->first();
-            if(!$contactCheck){
+            if ($item->entitySourceType != 'membership') {
+                continue;
+            }
+
+            // Skip if subscription already exists
+            if (Subscription::where('_id', $item->_id)->exists()) {
+                continue;
+            }
+            
+            // Skip if amount is not 39 or 390
+            if (!in_array($item->amount, [39, 390])) {
+                continue;
+            }
+
+            // Check if contact exists, if not create new one
+            $contact = Contact::where('contact_id', $item->contactId)->first();
+            if(!$contact){
                 $contact = new Contact();
                 $contact->contact_id = $item->contactId ?? '';
                 $contact->email = $item->contactEmail ?? '';
                 $contact->phone = $item->contactPhone ?? '';
                 $contact->save();
-            } else {
-                $contact = $contactCheck;
             }
 
             $sub = new Subscription();
             $sub->_id = $item->_id ?? '';
             $sub->contactId = $item->contactId ?? '';
             $sub->currency = $item->currency ?? '';
-            $sub->amount = $item->amount ?? 0;
             $sub->amount = $item->amount ?? 0;
             $sub->start_date = @$item->subscriptionStartDate ? Carbon::parse($item->subscriptionStartDate)->format('Y-m-d') : null;
             $sub->end_date = @$item->subscriptionEndDate ? Carbon::parse($item->subscriptionEndDate)->format('Y-m-d') : null;
@@ -168,13 +199,14 @@ Route::get('updateContacts', function() {
         $contactData = $contacts->get($contact->contact_id);
         $data = collect($contactData['contacts']);
 
-        $contact->country = $data[0]['country'] ?? null;
+        $countryName = !empty($data[0]['country']) ? Country::where('iso2', $data[0]['country'])->value('name') : null;
+        $contact->country = $countryName ?? $data[0]['country'] ?? null;
         $contact->source = $data[0]['source'] ?? null;
         $contact->type = $data[0]['type'] ?? null;
         $contact->address = $data[0]['address'] ?? null;
         $contact->tags = $data[0]['tags'] ?? null;
         $contact->location_id = $data[0]['locationId'] ?? null;
-        $contact->date_added = isset($data[0]['date_added']) ? Carbon::parse($data[0]['date_added']) : null;
+        $contact->date_added = isset($data[0]['dateAdded']) ? Carbon::parse($data[0]['dateAdded']) : null;
         $contact->date_update = isset($data[0]['dateUpdated']) ? Carbon::parse($data[0]['dateUpdated']) : null;
         $contact->first_name = $data[0]['firstNameLowerCase'] ?? null;
         $contact->last_name = $data[0]['lastNameLowerCase'] ?? null;
@@ -191,6 +223,7 @@ Route::get('updateContacts', function() {
     }
     
 })->name('update.contacts');
+*/
 
 Route::get('login', [AuthController::class, 'loginForm'])->name('login');
 Route::post('login', [AuthController::class, 'login'])->name('login.attempt');
@@ -201,10 +234,10 @@ Route::post('magic/generate', [AuthController::class, 'magicGenerateToken'])->na
 Route::get('magic/login/{token}', [AuthController::class, 'magicLogin'])->name('magic.login.token');
 Route::post('logout', [AuthController::class, 'logout'])->name('logout');
 
-Route::get('/email/preview', function () {
+/*Route::get('/email/preview', function () {
     $user = User::first();
     return new WelcomeMail($user);
-});
+});*/
 
 Route::middleware('auth')->prefix('dashboard')->group(function () {
     Route::get('/', [AdminController::class, 'index'])->name('admin.index');
@@ -230,7 +263,7 @@ Route::middleware('auth')->prefix('dashboard')->group(function () {
 
     Route::get('token',[GoHighLevelController::class,'token'])->name('token');
     Route::get('connect',[GoHighLevelController::class,'connect'])->name('connect');
-    Route::get('renewToken',[GoHighLevelController::class,'renewToken'])->name('renewToken');
+    Route::get('renewToken',[GoHighLevelController::class,'renewToken'])->name('renew.token');
     Route::get('finish',[GoHighLevelController::class,'finish'])->name('finish');
     Route::get('authorization',[GoHighLevelController::class,'authorization'])->name('authorization');
     Route::get('getToken',[GoHighLevelController::class,'getToken'])->name('get.token');
@@ -267,5 +300,18 @@ Route::middleware('auth')->prefix('dashboard')->group(function () {
         Route::get('subscriptions',[FilterController::class,'subscriptions'])->name('filters.subscriptions');
         Route::get('updateAllJson',[FilterController::class,'updateAllJSON'])->name('update.json');
     });
+
+    //Sync
+    Route::prefix('sync')->group(function () {
+        Route::get('transactions',[SyncController::class,'updateTransaction'])->name('update.transactions');
+        Route::get('subscriptions',[SyncController::class,'updateSubscriptions'])->name('update.subscriptions');
+        Route::get('contacts',[SyncController::class,'updateContacts'])->name('update.contacts');
+        Route::post('process-transactions', [SyncController::class, 'processTransactions'])->name('process.transactions');
+        Route::post('process-subscriptions', [SyncController::class, 'processSubscriptions'])->name('process.subscriptions');
+        Route::post('process-contacts', [SyncController::class, 'processContacts'])->name('process.contacts');
+        Route::get('start', [SyncController::class, 'startSync'])->name('sync.start');
+    });
 });
+
+
 

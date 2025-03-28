@@ -13,8 +13,7 @@ class TransactionController extends Controller
 {
     public function index()
     {
-        $allTransactions = config('app.transactions.data');
-        return view('admin.transactions.index',compact('allTransactions'));
+        return view('admin.transactions.index');
     }
 
     public function update()

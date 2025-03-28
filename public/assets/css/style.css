@@ -15342,3 +15342,7 @@ td.fc-header-center {
   transform: translate(-50%, -50%);
   z-index: 100;
 }
+
+h2#swal2-title {
+  font-size: 26px !important;
+}

@@ -243,7 +243,7 @@ class FilterController extends Controller
 
     public function projection(Request $request)
     {   
-        $transactions = collect(config('app.transactions.data'));
+        $transactions = Transaction::all();
         $sources = $transactions->pluck('entity_resource_name')->unique()->values()->toArray();
         $selectedSources = $request->input('sources') ? array_map('urldecode', $request->input('sources', [])) : $sources;
 

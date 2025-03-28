@@ -50,8 +50,6 @@ class AdminController extends Controller
             })
             ->sortBy('amount')
             ->last();
-
-        
         
             //Ingresos semanal
         $weeklyAmounts = collect($transactionsSucceded)

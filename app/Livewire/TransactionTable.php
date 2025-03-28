@@ -31,7 +31,7 @@ class TransactionTable extends Component
 
     public function mount()
     {
-        $this->source = ['funnel'];
+        $this->source = ['membership'];
         $this->status = ['succeeded','refunded','failed'];
         $this->startDate = Carbon::now()->startOfMonth()->format('Y-m-d');
         $this->endDate = Carbon::now()->endOfMonth()->format('Y-m-d');

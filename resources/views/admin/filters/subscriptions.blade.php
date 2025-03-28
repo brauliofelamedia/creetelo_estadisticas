@@ -16,7 +16,7 @@
     </div>
 
     <div class="row">
-        <div class="col-3">
+        <div class="col-lg-3">
             <div class="card">
                 <div class="card-header">
                     <h6 class="card-title mb-0">Filtros</h6>
@@ -33,6 +33,7 @@
                                     <label class="label-bold">Fecha final</label>
                                     <input type="date" class="form-control" name="end_date" value="{{($endDate)? $endDate : \Carbon\Carbon::now()->endOfWeek()->format('Y-m-d') }}">
                                 </div>
+                                <hr style="margin:10px 0;">
                                 <div class="form-group mb-10">
                                     <label class="label-bold">Membresías</label>
                                     @foreach($allSources as $key => $source)
@@ -48,7 +49,11 @@
                                                 </label>
                                         </div>
                                     @endforeach
-                                    <button type="submit" class="btn btn-primary" style="width: 100%;">Resumen de subscripciones</button>
+                                    <div class="d-flex gap-2 mb-3">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" style="width:100%;" id="selectAll">Seleccionar</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" style="width:100%;" id="deselectAll">Deseleccionar</button>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary" style="width: 100%;">Filtrar</button>
                                 </div>
                             </div>
                         </div>
@@ -56,7 +61,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-9">
+        <div class="col-lg-9">
             <div class="card mb-20">
                 <div class="card-header">
                     <h6 class="card-title mb-0">Resumen de subscripciones</h6>
@@ -108,7 +113,7 @@
                         <div class="col-6 mt-3">
                             <div class="card bg-danger bg-opacity-10">
                                 <div class="card-body">
-                                    <h6>Churn Rate (Tasa de cancelación)</h6>
+                                    <h6>Tasa de cancelación</h6>
                                     <h5>{{ number_format($totalStats['churn_rate'], 2) }}%</h5>
                                 </div>
                             </div>
@@ -223,8 +228,18 @@
 </style>
 @endpush
 
-@push('js')
+@push('scripts')
 <script>
+    $(document).ready(function() {
+        $('#selectAll').click(function() {
+            $('input[name="sources[]"]').prop('checked', true);
+        });
+        
+        $('#deselectAll').click(function() {
+            $('input[name="sources[]"]').prop('checked', false);
+        });
+    });
+
     // Inicializar las pestañas de Bootstrap
     document.addEventListener('DOMContentLoaded', function() {
         var tabElms = document.querySelectorAll('a[data-bs-toggle="tab"]');

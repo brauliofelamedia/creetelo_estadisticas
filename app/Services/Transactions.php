@@ -30,7 +30,7 @@ class Transactions
         ]);
     }
 
-    public function get($offset,$contactId = null,$subscription_id = null)
+    public function get($offset = 0,$contactId = null,$subscription_id = null)
     {
         try {
             // Realizar la solicitud GET
