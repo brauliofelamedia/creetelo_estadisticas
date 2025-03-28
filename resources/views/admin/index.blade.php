@@ -43,8 +43,9 @@
                 </div>
                 </div><!-- card end -->
             </div>
+
             <div class="col">
-                <div class="card shadow-none border bg-gradient-start-2 h-100">
+                <div class="card shadow-none border bg-gradient-start-3 h-100">
                 <div class="card-body p-20">
                     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
                     <div>
@@ -58,8 +59,9 @@
                 </div>
                 </div><!-- card end -->
             </div>
+
             <div class="col">
-                <div class="card shadow-none border bg-gradient-start-3 h-100">
+                <div class="card shadow-none border bg-gradient-start-2 h-100">
                 <div class="card-body p-20">
                     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
                         <div>
@@ -106,6 +108,19 @@
         </div>
 
         <div class="row gy-4 mt-1">
+            <div class="col-xxl-6 col-xl-12">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="d-flex flex-wrap align-items-center justify-content-between">
+                            <h6 class="text-lg mb-0">Ingresos año pasado</h6>
+                        </div>
+                        <div class="d-flex flex-wrap align-items-center gap-2 mt-8">
+                            <h6 class="mb-0">${{number_format($totalLastYear,0)}} USD</h6>
+                        </div>
+                        <div id="chartLastYear" class="pt-28 apexcharts-tooltip-style-1"></div>
+                    </div>
+                </div>
+            </div>
             <div class="col-xxl-6 col-xl-12">
                 <div class="card h-100">
                 <div class="card-body">
@@ -163,6 +178,18 @@
                     </ul>
                     
                 </div>
+                </div>
+            </div>
+            <!-- Add the new chart here -->
+            <div class="col-xxl-6 col-xl-12">
+                <div class="card h-100 radius-8 border">
+                    <div class="card-body p-24">
+                        <h6 class="mb-12 fw-semibold text-lg mb-16">Ingresos diarios del mes</h6>
+                        <div class="d-flex align-items-center gap-2 mb-20">
+                            <h6 class="fw-semibold mb-0">${{number_format($totalCurrentMonth,0)}} USD</h6>
+                        </div>
+                        <div id="dailyChart" class="dailyChart"></div>
+                    </div>
                 </div>
             </div>
             <div class="col-xxl-9 col-xl-12">
@@ -339,6 +366,107 @@
     chart.render();
 </script>
 <script>
+    var optionsLastYear = {
+        series: [{
+            name: "Año pasado",
+            data: {!! json_encode($lastYearMonthlyAmounts) !!}
+        }],
+        chart: {
+            height: 264,
+            type: 'line',
+            toolbar: {
+                show: false
+            },
+            zoom: {
+                enabled: false
+            },
+            dropShadow: {
+                enabled: true,
+                top: 6,
+                left: 0,
+                blur: 4,
+                color: "#000",
+                opacity: 0.1,
+            },
+        },
+        dataLabels: {
+            enabled: false
+        },
+        stroke: {
+            curve: 'smooth',
+            colors: ['#FF9F29'],
+            width: 3
+        },
+        markers: {
+            size: 0,
+            strokeWidth: 3,
+            hover: {
+                size: 8
+            }
+        },
+        tooltip: {
+            enabled: true,
+            x: {
+                show: true,
+            },
+            y: {
+                show: false,
+            },
+            z: {
+                show: false,
+            }
+        },
+        grid: {
+            row: {
+                colors: ['transparent', 'transparent'],
+                opacity: 0.5
+            },
+            borderColor: '#D1D5DB',
+            strokeDashArray: 3,
+        },
+        yaxis: {
+            labels: {
+                formatter: function (value) {
+                    return "$" + value + " USD";
+                },
+                style: {
+                    fontSize: "14px"
+                }
+            },
+        },
+        xaxis: {
+            categories: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+            tooltip: {
+                enabled: false
+            },
+            labels: {
+                formatter: function (value) {
+                    return value;
+                },
+                style: {
+                    fontSize: "14px"
+                }
+            },
+            axisBorder: {
+                show: false
+            },
+            crosshairs: {
+                show: true,
+                width: 20,
+                stroke: {
+                    width: 0
+                },
+                fill: {
+                    type: 'solid',
+                    color: '#FF9F2940',
+                }
+            }
+        }
+    };
+    var chartLastYear = new ApexCharts(document.querySelector("#chartLastYear"), optionsLastYear);
+    chartLastYear.render();
+</script>
+<script>
     var options = { 
       series: [{!! json_encode($paypal) !!}, {!! json_encode($stripe) !!}],
       colors: ['#FF9F29', '#487FFF'],
@@ -449,5 +577,64 @@
 
   var chart = new ApexCharts(document.querySelector("#barChart"), options);
   chart.render();
+</script>
+<script>
+    var dailyOptions = {
+        series: [{
+            name: "Ingresos",
+            data: {!! json_encode($dailyAmounts) !!}
+        }],
+        chart: {
+            type: 'bar',
+            height: 235,
+            toolbar: {
+                show: false
+            },
+        },
+        plotOptions: {
+            bar: {
+                borderRadius: 6,
+                horizontal: false,
+                columnWidth: '52%',
+                endingShape: 'rounded',
+            }
+        },
+        dataLabels: {
+            enabled: false
+        },
+        fill: {
+            type: 'gradient',
+            colors: ['#487FFF'],
+            gradient: {
+                shade: 'light',
+                type: 'vertical',
+                shadeIntensity: 0.5,
+                gradientToColors: ['#487FFF'],
+                inverseColors: false,
+                opacityFrom: 1,
+                opacityTo: 0.8,
+                stops: [0, 100],
+            },
+        },
+        grid: {
+            show: true,
+            borderColor: '#D1D5DB',
+            strokeDashArray: 4,
+            position: 'back',
+        },
+        xaxis: {
+            categories: Array.from({length: {!! Carbon\Carbon::now()->daysInMonth !!}}, (_, i) => i + 1),
+        },
+        yaxis: {
+            labels: {
+                formatter: function (value) {
+                    return "$" + value + " USD";
+                }
+            },
+        },
+    };
+
+    var dailyChart = new ApexCharts(document.querySelector("#dailyChart"), dailyOptions);
+    dailyChart.render();
 </script>
 @endpush

@@ -96,6 +96,23 @@ class AdminController extends Controller
             })
             ->values();
 
+        $lastYearMonthlyAmounts = collect($transactionsSucceded)
+            ->filter(function ($item) {
+                return Carbon::parse($item->create_time)->year === Carbon::now()->subYear(1)->year;
+            })
+            ->groupBy(function ($item) {
+                return Carbon::parse($item->create_time)->month;
+            })
+            ->map(function ($items) {
+                return $items->sum('amount');
+            })
+            ->pipe(function ($collection) {
+                return collect(range(1, 12))->mapWithKeys(function ($month) use ($collection) {
+                    return [$month => $collection->get($month, 0)];
+                });
+            })
+            ->values();
+
         //Ingresos año pasado
         $totalLastYear = collect($transactionsSucceded)
             ->filter(function ($item) {
@@ -118,7 +135,24 @@ class AdminController extends Controller
         $userDifference = $currentContacts - $usersThirtyDaysAgo;
         $latestUsers = User::orderBy('created_at', 'desc')->take(5)->get();
 
-        return view('admin.index', compact('currentContacts','currentUsers','userDifference', 'latestUsers','totalCurrentYear','bestMonth','totalLastYear','totalCurrentMonth','monthlyAmounts','paypal','stripe','weeklyAmounts','currentWeekAmount'));
+        $dailyAmounts = collect($transactionsSucceded)
+            ->filter(function ($item) {
+                return Carbon::parse($item->create_time)->month === Carbon::now()->month
+                    && Carbon::parse($item->create_time)->year === Carbon::now()->year;
+            })
+            ->groupBy(function ($item) {
+                return Carbon::parse($item->create_time)->day;
+            })
+            ->map(function ($items) {
+                return $items->sum('amount');
+            })
+            ->pipe(function ($collection) {
+                return collect(range(1, Carbon::now()->daysInMonth))->map(function ($day) use ($collection) {
+                    return $collection->get($day, 0);
+                });
+            });
+
+        return view('admin.index', compact('currentContacts','currentUsers','userDifference', 'latestUsers','totalCurrentYear','bestMonth','totalLastYear','totalCurrentMonth','monthlyAmounts','lastYearMonthlyAmounts','paypal','stripe','weeklyAmounts','currentWeekAmount','dailyAmounts'));
     }
 
     public function config()
