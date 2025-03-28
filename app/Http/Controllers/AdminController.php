@@ -54,11 +54,11 @@ class AdminController extends Controller
             //Ingresos semanal
         $weeklyAmounts = collect($transactionsSucceded)
             ->filter(function ($item) {
-            $date = Carbon::parse($item->create_time);
+            $date = Carbon::parse($item->create_time)->timezone('America/Mexico_City');
                 return $date->isCurrentWeek();
             })
             ->groupBy(function ($item) {
-                return Carbon::parse($item->create_time)->dayOfWeek;
+                return Carbon::parse($item->create_time)->timezone('America/Mexico_City')->dayOfWeek;
             })
             ->map(function ($items) {
                 return $items->sum('amount');
