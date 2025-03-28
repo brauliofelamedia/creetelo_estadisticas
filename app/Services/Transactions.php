@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
 use App\Models\Config;
+use Carbon\Carbon;
 use GuzzleHttp\Client;
 use Exception;
 
@@ -29,7 +30,7 @@ class Transactions
         ]);
     }
 
-    public function get($offset = 0)
+    public function get($offset,$contactId = null,$subscription_id = null)
     {
         try {
             // Realizar la solicitud GET
@@ -43,8 +44,8 @@ class Transactions
                     'altId' => $this->config->location_id,
                     'altType' => 'location',
                     'limit' => 100,
-                    'paymentMode' => 'live',
                     'offset' => $offset,
+                    'endAt' => Carbon::now()->format('Y-m-d'),
                 ],
             ]);
 

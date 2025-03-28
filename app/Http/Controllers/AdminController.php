@@ -5,28 +5,42 @@ namespace App\Http\Controllers;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Services\Contacts;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use App\Services\Subscriptions;
+use App\Models\Contact;
 
 class AdminController extends Controller
 {
 
     public function index()
     {
-        $contacts = config('app.contacts.data');
-        $transactions = config('app.transactions.data');
+        $contacts = Contact::paginate(30);
+        $transactions = Transaction::all();
         
+        //Contactos activos
+        $currentContacts = Contact::count();
+        $currentUsers = User::count();
+
+        //Transacciones
         $transactionsSucceded = collect($transactions)->filter(function($item) {
-            return $item->status === 'succeeded';
+            return $item->status === 'succeeded' && $item->livemode === '1';
         })->values()->all();
 
-        $bestMonth = collect($transactionsSucceded)
+        $totalCurrentMonth = collect($transactionsSucceded)
             ->filter(function ($item) {
-                return Carbon::parse($item->createdAt)->year === Carbon::now()->year;
+            return Carbon::parse($item->create_time)->year === Carbon::now()->year &&
+                   Carbon::parse($item->create_time)->month === Carbon::now()->month;
+            })
+            ->sum('amount');
+
+            $bestMonth = collect($transactionsSucceded)
+            ->filter(function ($item) {
+                return Carbon::parse($item->create_time)->year === Carbon::now()->year;
             })
             ->groupBy(function ($item) {
-            return Carbon::parse($item->createdAt)->month;
+            return Carbon::parse($item->create_time)->month;
             })
             ->map(function ($items, $month) {
                 return [
@@ -37,13 +51,16 @@ class AdminController extends Controller
             ->sortBy('amount')
             ->last();
 
+        
+        
+            //Ingresos semanal
         $weeklyAmounts = collect($transactionsSucceded)
             ->filter(function ($item) {
-            $date = Carbon::parse($item->createdAt);
+            $date = Carbon::parse($item->create_time);
                 return $date->isCurrentWeek();
             })
             ->groupBy(function ($item) {
-                return Carbon::parse($item->createdAt)->dayOfWeek;
+                return Carbon::parse($item->create_time)->dayOfWeek;
             })
             ->map(function ($items) {
                 return $items->sum('amount');
@@ -55,24 +72,21 @@ class AdminController extends Controller
             });
 
         $currentWeekAmount = $weeklyAmounts->sum();
-        $stripe = collect($transactionsSucceded)->filter(function ($item) {
-            return in_array($item->paymentProviderType, ['stripe']);
-        })->count();
-        $paypal = collect($transactionsSucceded)->filter(function ($item) {
-            return in_array($item->paymentProviderType, ['paypal']);
-        })->count();
+        
+        //Ingresos totales año actual
         $totalCurrentYear = collect($transactionsSucceded)
             ->filter(function ($item) {
-                return Carbon::parse($item->createdAt)->year === Carbon::now()->year;
+                return Carbon::parse($item->create_time)->year === Carbon::now()->year;
             })
             ->sum('amount');
 
+
         $monthlyAmounts = collect($transactionsSucceded)
             ->filter(function ($item) {
-                return Carbon::parse($item->createdAt)->year === Carbon::now()->year;
+                return Carbon::parse($item->create_time)->year === Carbon::now()->year;
             })
             ->groupBy(function ($item) {
-                return Carbon::parse($item->createdAt)->month;
+                return Carbon::parse($item->create_time)->month;
             })
             ->map(function ($items) {
                 return $items->sum('amount');
@@ -84,29 +98,29 @@ class AdminController extends Controller
             })
             ->values();
 
+        //Ingresos año pasado
         $totalLastYear = collect($transactionsSucceded)
             ->filter(function ($item) {
-                $itemDate = Carbon::parse($item->createdAt);
-                $lastYear = Carbon::now()->subYear()->year;
-                return $itemDate->year === $lastYear;
+                return Carbon::parse($item->create_time)->year === Carbon::now()->subYear(1)->year;
             })
             ->sum('amount');
 
-        $totalCurrentMonth = collect($transactionsSucceded)
-            ->filter(function ($item) {
-            return Carbon::parse($item->createdAt)->year === Carbon::now()->year &&
-                   Carbon::parse($item->createdAt)->month === Carbon::now()->month;
-            })
-            ->sum('amount');
+        //Pagos por Stripe y Paypal
+        $stripe = collect($transactionsSucceded)->filter(function ($item) {
+            return in_array($item->payment_provider, ['stripe']);
+        })->count();
 
-        $currentUsers = $contacts->count();
+        $paypal = collect($transactionsSucceded)->filter(function ($item) {
+            return in_array($item->payment_provider, ['paypal']);
+        })->count();
+    
         $now = Carbon::now();
         $thirtyDaysAgo = Carbon::now()->subDays(30);
         $usersThirtyDaysAgo = User::where('created_at', '<=', $thirtyDaysAgo)->count();
-        $userDifference = $currentUsers - $usersThirtyDaysAgo;
+        $userDifference = $currentContacts - $usersThirtyDaysAgo;
         $latestUsers = User::orderBy('created_at', 'desc')->take(5)->get();
 
-        return view('admin.index', compact('currentUsers', 'userDifference', 'latestUsers','totalCurrentYear','bestMonth','totalLastYear','totalCurrentMonth','monthlyAmounts','paypal','stripe','weeklyAmounts','currentWeekAmount'));
+        return view('admin.index', compact('currentContacts','currentUsers','userDifference', 'latestUsers','totalCurrentYear','bestMonth','totalLastYear','totalCurrentMonth','monthlyAmounts','paypal','stripe','weeklyAmounts','currentWeekAmount'));
     }
 
     public function config()

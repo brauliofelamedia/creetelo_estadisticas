@@ -1,21 +1,52 @@
 <div>
     <form class="row g-3 align-items-center mb-12 pt-10">
+        <div class="col-auto d-flex align-items-center">
+            <div class="form-check form-check-inline mb-0">
+                <input wire:model.live="status" class="form-check-input" type="checkbox" value="succeeded" id="status-succeeded">
+                <label class="form-check-label" for="status-succeeded">Exitoso</label>
+            </div>
+            <div class="form-check form-check-inline mb-0">
+            <input wire:model.live="status" class="form-check-input" type="checkbox" value="failed" id="status-failed">
+            <label class="form-check-label" for="status-failed">Fallido</label>
+            </div>
+            <div class="form-check form-check-inline mb-0">
+            <input wire:model.live="status" class="form-check-input" type="checkbox" value="refunded" id="status-refunded">
+            <label class="form-check-label" for="status-refunded">Reembolso</label>
+            </div>
+        </div>
+        <!-- Floating Filter Button -->
         <div class="col-auto">
-            <select wire:model.live="status" id="status" class="form-control form-select">
-                <option value="*">-- Seleccionar estatus --</option>
-                <option value="active">Activo</option>
-                <option value="incomplete_expired">Incompleto / expirado</option>
-                <option value="canceled">Cancelado</option>
-                <option value="past_due">Pago atrasado</option>
-            </select>
+            <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#filterSidebar">
+            <i class="fas fa-filter"></i> Membresías
+            </button>
+        </div>
+
+        <!-- Floating Sidebar -->
+        <div class="offcanvas offcanvas-end" tabindex="-1" id="filterSidebar" style="max-width: 450px;" wire:ignore.self>
+            <div class="offcanvas-header">
+            <h6 class="offcanvas-title">Filtros por membresía</h6>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            </div>
+            <div class="offcanvas-body">
+            <div class="d-flex flex-column w-100">
+                @foreach($sourceNames as $sourceName)
+                    <div class="form-check mb-2" style="font-size: 0.9rem;">
+                        <input wire:model.defer="source" wire:change="$refresh" class="form-check-input form-check-input-sm" type="checkbox" value="{{ $sourceName }}" id="source-{{ $loop->index }}" {{ !$source || in_array($sourceName, $source) ? 'checked' : '' }}>
+                        <label class="form-check-label" for="source-{{ $loop->index }}">{{ str_replace('- Payment', '', $sourceName) }}</label>
+                    </div>
+                @endforeach
+                <div class="d-flex gap-2 mt-3">
+                    <button type="button" class="btn btn-sm btn-outline-primary" wire:click="selectAllSources">Seleccionar todo</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="deselectAllSources">Deseleccionar todo</button>
+                </div>
+            </div>
+            </div>
         </div>
         <div class="col-auto">
-            <select wire:model.live="source" id="source" class="form-control form-select">
-                <option value="">-- Seleccionar source --</option>
-                @foreach($sourceNames as $sourceName)
-                    <option value="{{ $sourceName }}">{{ $sourceName }}</option>
-                @endforeach
-            </select>
+            <input type="date" wire:model.live="startDate" class="form-control" placeholder="Fecha inicial">
+        </div>
+        <div class="col-auto">
+            <input type="date" wire:model.live="endDate" class="form-control" placeholder="Fecha final">
         </div>
         <div class="col-auto ms-auto">
             <input type="search" wire:model.live="search" id="search" class="form-control" placeholder="Buscar...">
@@ -30,7 +61,7 @@
                     <th>Nombre</th>
                     <th class="d-none d-md-table-cell">Correo</th>
                     <th>Monto</th>
-                    <th>Membresia</th>
+                    <th>Membresía</th>
                     <th>Estatus</th>
                     <th class="d-none d-md-table-cell">Fecha de creación</th>
                 </tr>
@@ -47,25 +78,23 @@
                 @else
                     @foreach($subscriptions as $subscription)
                     <tr>
-                        <td class="d-none d-md-table-cell">{{ $loop->iteration }}</td>
-                        <td>{{ ucfirst($subscription->contactName) }}</td>
-                        <td class="d-none d-md-table-cell">{{ $subscription->contactEmail }}</td>
+                        <td class="d-none d-md-table-cell">{{ $subscription->id }}</td>
+                        <td>{{ ucfirst($subscription->contact->name) }}</td>
+                        <td class="d-none d-md-table-cell">{{ $subscription->contact->email }}</td>
                         <td>$ {{ number_format($subscription->amount) }} USD</td>
-                        <td>{{$subscription->entitySourceName}}</td>
+                        <td>{{ str_replace('- Payment', '', $subscription->entity_resource_name) }}</td>
                         <td>
-                            @if($subscription->status === 'active')
-                                <span class="text-success">Activo</span>
-                            @elseif($subscription->status === 'canceled')
-                                <span class="text-danger">Cancelado</span>
-                            @elseif($subscription->status === 'incomplete_expired')
-                                <span class="text-warning">Incompleto</span>
-                            @elseif($subscription->status === 'past_due')
-                                <span class="text-info">Pago atrasado</span>
+                            @if($subscription->status === 'succeeded')
+                                <span class="badge bg-success text-white">Exitoso</span>
+                            @elseif($subscription->status === 'failed')
+                                <span class="badge bg-danger text-white">Fallido</span>
+                            @elseif($subscription->status === 'refunded')
+                                <span class="badge bg-warning text-dark">Reembolsado</span>
                             @else
-                                {{ $subscription->status }}
+                                <span class="badge bg-secondary text-white">{{ $subscription->status }}</span>
                             @endif
                         </td>
-                        <td class="d-none d-md-table-cell">{{ \Carbon\Carbon::parse($subscription->createdAt)->diffForHumans() }}</td>
+                        <td class="d-none d-md-table-cell">{{ \Carbon\Carbon::parse($subscription->create_time)->format('d-m-Y h:s') }}</td>
                     </tr>
                     @endforeach
                 @endif
@@ -91,4 +120,41 @@
             </button>
         </div>
     </div>
+
+    <div class="table-responsive mt-4">
+        <table class="table table-sm bordered-table">
+            <thead>
+                <tr>
+                    <th>Transacciones totales exitosas</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="h5">$ {{ number_format($totalAmount) }} USD</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 </div>
+
+@push('css')
+<style>
+    .form-check-label {
+        top: -4px;
+        position: relative;
+        left: 5px;
+    }
+    .ts-wrapper {
+        min-width: 250px;
+    }
+    .ts-control {
+        border-radius: 4px !important;
+    }
+    .ts-dropdown {
+        border-radius: 4px !important;
+    }
+</style>
+@endpush
+
+@push('scripts')
+@endpush

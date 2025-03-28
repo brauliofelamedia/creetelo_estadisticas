@@ -45,6 +45,7 @@ class Subscriptions
                     'altType' => 'location',
                     'limit' => 100,
                     'paymentMode' => 'live',
+                    'endAt' => Carbon::now()->format('Y-m-d'),
                     'offset' => $offset,
                 ],
             ]);

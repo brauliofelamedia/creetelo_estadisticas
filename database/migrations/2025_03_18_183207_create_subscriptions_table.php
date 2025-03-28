@@ -13,21 +13,26 @@ return new class extends Migration
     {
         Schema::create('subscriptions', function (Blueprint $table) {
             $table->id();
+            $table->string('_id')->nullable();
+            $table->string('contactId')->nullable();
             $table->string('email')->nullable();
             $table->string('currency')->nullable();
             $table->decimal('amount',10,2)->nullable();
             $table->string('status')->nullable();
             $table->boolean('livemode')->default(true);
-            $table->string('entityType')->nullable();
-            $table->string('entityId')->nullable();
-            $table->string('providerType')->nullable();
-            $table->string('sourceType')->nullable();
+            $table->string('entity_type')->nullable();
+            $table->string('entity_id')->nullable();
+            $table->string('provider_type')->nullable();
+            $table->string('source_type')->nullable();
+            $table->string('entity_resource_name')->nullable();
             $table->string('subscription_id')->nullable();
+            $table->date('start_date')->nullable();
+            $table->date('end_date')->nullable();
             $table->date('create_time')->nullable();
 
             //Contacts
-            /*$table->unsignedBigInteger('lead_id')->nullable();
-            $table->foreign('lead_id')->references('id')->on('contacts')->onDelete('cascade'); */
+            $table->unsignedBigInteger('contact_id')->nullable();
+            $table->foreign('contact_id')->references('id')->on('contacts')->onDelete('cascade');
 
             $table->timestamps();
         });

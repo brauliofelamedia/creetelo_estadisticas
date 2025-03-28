@@ -22,8 +22,8 @@
                 <div class="card-body p-20">
                     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
                     <div>
-                        <p class="fw-medium text-primary-light mb-1">Contactos activos</p>
-                        <h6 class="mb-0">{{$currentUsers}}</h6>
+                        <p class="fw-medium text-primary-light mb-1">Contactos</p>
+                        <h6 class="mb-0">{{number_format($currentContacts,0)}}</h6>
                     </div>
                     <div class="w-50-px h-50-px bg-cyan rounded-circle d-flex justify-content-center align-items-center">
                         <iconify-icon icon="gridicons:multiple-users" class="text-white text-2xl mb-0"></iconify-icon>
@@ -99,13 +99,7 @@
                 <div class="card h-100">
                 <div class="card-body">
                     <div class="d-flex flex-wrap align-items-center justify-content-between">
-                    <h6 class="text-lg mb-0">Ingresos año actual</h6>
-                    <select class="form-select bg-base form-select-sm w-auto" style="display: none;">
-                        <option>Yearly</option>
-                        <option>Monthly</option>
-                        <option>Weekly</option>
-                        <option>Today</option>
-                    </select>
+                        <h6 class="text-lg mb-0">Ingresos año actual</h6>
                     </div>
                     <div class="d-flex flex-wrap align-items-center gap-2 mt-8">
                     <h6 class="mb-0">${{number_format($totalCurrentYear,0)}} USD</h6>
@@ -119,7 +113,7 @@
                     <div class="card-body p-24">
                         <h6 class="mb-12 fw-semibold text-lg mb-16">Ingresos semanales</h6>
                         <div class="d-flex align-items-center gap-2 mb-20">
-                            <h6 class="fw-semibold mb-0">${{$currentWeekAmount}} USD</h6>
+                            <h6 class="fw-semibold mb-0">${{number_format($currentWeekAmount,0)}} USD</h6>
                         </div>
                         <div id="barChart" class="barChart"></div>
                     </div>

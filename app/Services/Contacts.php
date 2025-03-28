@@ -28,27 +28,31 @@ class Contacts {
         ]);
     }
 
-    public function get($page = 0)
+    public function get($contactId = null)
     {   
-        $filters = [
-            [
-            'group' => 'OR',
-            'filters' => array_map(function($tag) {
-                return [
-                'field' => 'tags',
-                'operator' => 'eq',
-                'value' => [$tag],
-                ];
-            }, str_split($this->config->tags))
-            ]
-        ];
-
-        $data = [
-            'locationId' => $this->config->location_id,
-            'page' => $page,
-            'pageLimit' => 100,
-            //'filters' => $filters,
-        ];
+        if($contactId){
+            $filters = [
+                [
+                    'field' => 'id',
+                    'operator' => 'eq',
+                    'value' => $contactId
+                ]
+            ];
+    
+            $data = [
+                'locationId' => $this->config->location_id,
+                'pageLimit' => 100,
+                'filters' => $filters,
+                'page' => 0,
+            ];
+        } else {
+            $data = [
+                'locationId' => $this->config->location_id,
+                'pageLimit' => 100,
+                'page' => 0,
+            ];
+        }
+        
 
         try {
             $response = Http::withOptions([

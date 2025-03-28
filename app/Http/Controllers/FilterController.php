@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Subscription;
+use App\Models\Transaction;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use App\Services\Transactions;
@@ -18,8 +20,8 @@ class FilterController extends Controller
     public function filters(Request $request)
     {
         // Obtener datos y parámetros
-        $allTransactions = collect(config('app.transactions.data'));
-        $sources = $allTransactions->pluck('entitySourceName')->unique()->values()->toArray();
+        $allTransactions = Transaction::all();
+        $sources = $allTransactions->pluck('entity_resource_name')->unique()->values()->toArray();
         
         // Procesar parámetros del request
         $startDate = $request->get('start_date');
@@ -31,20 +33,20 @@ class FilterController extends Controller
             $endDate = $now->endOfWeek()->format('Y-m-d');
         }
 
-        $selectedSources = array_map('urldecode', $request->input('sources', []));
+        $selectedSources = $request->input('sources') ? array_map('urldecode', $request->input('sources', [])) : array('Únete a Créetelo Mensual');
         
         // Aplicar filtros combinados en una sola pasada
         $filteredTransactions = $allTransactions->filter(function($transaction) use ($selectedSources, $startDate, $endDate) {
             // Filtro por fuentes seleccionadas
             if (!empty($selectedSources)) {
-                if (!in_array($transaction->entitySourceName, $selectedSources)) {
+                if (!in_array($transaction->entity_resource_name, $selectedSources)) {
                     return false;
                 }
             }
             
             // Filtro por rango de fechas
             if ($startDate && $endDate) {
-                $transactionDate = Carbon::parse($transaction->createdAt);
+                $transactionDate = Carbon::parse($transaction->create_time);
                 $start = Carbon::parse($startDate)->startOfDay();
                 $end = Carbon::parse($endDate)->endOfDay();
                 
@@ -58,7 +60,7 @@ class FilterController extends Controller
         
         // Procesamiento de resultados
         $resume = $filteredTransactions->groupBy(function($transaction) {
-            return Carbon::parse($transaction->createdAt)->format('Y-m-d');
+            return Carbon::parse($transaction->create_time)->format('Y-m-d');
         })->map(function($dailyTransactions, $date) use ($selectedSources) {
             // Initialize status counters
             $succeededCount = 0;
@@ -71,7 +73,7 @@ class FilterController extends Controller
             // Count transactions by status and source
             foreach ($dailyTransactions as $transaction) {
                 // Initialize source data if not exists
-                $sourceName = $transaction->entitySourceName ?? 'unknown';
+                $sourceName = $transaction->entity_resource_name ?? 'unknown';
                 if (!isset($sourceData[$sourceName])) {
                     $sourceData[$sourceName] = [
                         'count' => 0,
@@ -166,7 +168,7 @@ class FilterController extends Controller
             }
             
             // Track source-specific data
-            $sourceName = $transaction->entitySourceName ?? 'unknown';
+            $sourceName = $transaction->entity_resource_name ?? 'unknown';
             if (!isset($dailyTotals[$date]['sources'][$sourceName])) {
                 $dailyTotals[$date]['sources'][$sourceName] = [
                     'count' => 0,
@@ -242,8 +244,8 @@ class FilterController extends Controller
     public function projection(Request $request)
     {   
         $transactions = collect(config('app.transactions.data'));
-        $sources = $transactions->pluck('entitySourceName')->unique()->values()->toArray();
-        $selectedSources = array_map('urldecode', $request->input('sources', []));
+        $sources = $transactions->pluck('entity_resource_name')->unique()->values()->toArray();
+        $selectedSources = $request->input('sources') ? array_map('urldecode', $request->input('sources', [])) : $sources;
 
         //$subscriptions = config('app.subscriptions.data');
         $projectionPeriod = $this->projectionPeriod;
@@ -256,7 +258,7 @@ class FilterController extends Controller
             'projectedData' => $this->projectedData,
             'projectionPeriod' => $this->projectionPeriod,
             'selectedSources' => $selectedSources,
-            'sources' => $transactions->pluck('entitySourceName')->unique()->values()->toArray()
+            'sources' => $transactions->pluck('entity_resource_name')->unique()->values()->toArray()
         ]);
 
         //return view('admin.filters.projection',compact('transactions','projectionPeriod','sources','selectedSources'));
@@ -275,14 +277,15 @@ class FilterController extends Controller
             'projectedData' => $this->projectedData,
             'projectionPeriod' => $this->projectionPeriod,
             'selectedSources' => $selectedSources,
-            'sources' => $allTransactions->pluck('entitySourceName')->unique()->values()->toArray()
+            'sources' => $allTransactions->pluck('entity_resource_name')->unique()->values()->toArray()
         ]);
     }
 
     public function subscriptions(Request $request)
     {
-        $subscriptionsAll = collect(config('app.subscriptions.data'));
-        $selectedSources = array_map('urldecode', $request->input('sources', []));
+        $subscriptionsAll = Subscription::with('contact')->get();
+        $sources = $subscriptionsAll->pluck('entity_resource_name')->unique()->values()->toArray();
+        $selectedSources = $request->input('sources') ? array_map('urldecode', $request->input('sources', [])) : array('M. Créetelo Mensual Activas');
         $startDate = $request->get('start_date');
         $endDate = $request->get('end_date');
 
@@ -290,9 +293,9 @@ class FilterController extends Controller
 
         if ($startDate && $endDate) {
             $subscriptions = $subscriptions->filter(function($subscription) use ($startDate, $endDate) {
-                $subStart = Carbon::parse($subscription->subscriptionStartDate)->format('Y-m-d');
-                $subEnd = !empty($subscription->subscriptionEndDate) 
-                    ? Carbon::parse($subscription->subscriptionEndDate)->format('Y-m-d')
+                $subStart = Carbon::parse($subscription->start_date)->format('Y-m-d');
+                $subEnd = !empty($subscription->start_date) 
+                    ? Carbon::parse($subscription->end_date)->format('Y-m-d')
                     : null;
 
                 return ($subStart >= $startDate && $subStart <= $endDate) ||
@@ -303,16 +306,16 @@ class FilterController extends Controller
 
         if (!empty($selectedSources)) {
             $subscriptions = $subscriptions->filter(function($subscription) use ($selectedSources) {
-                return in_array($subscription->entitySourceName, $selectedSources);
+                return in_array($subscription->entity_resource_name, $selectedSources);
             });
         }
 
         // Eliminar el statusMap y modificar directamente el map de subscriptions
         $subscriptions = $subscriptions->map(function($subscription) {
-            $startDate = Carbon::parse($subscription->subscriptionStartDate);
+            $startDate = Carbon::parse($subscription->start_date);
             
-            if (!empty($subscription->subscriptionEndDate)) {
-                $endDate = Carbon::parse($subscription->subscriptionEndDate);
+            if (!empty($subscription->end_date)) {
+                $endDate = Carbon::parse($subscription->end_date);
                 $subscription->duration = $startDate->diffInDays($endDate);
             } else {
                 $subscription->duration = $startDate->diffInDays(now());
@@ -326,7 +329,7 @@ class FilterController extends Controller
             return $subscription;
         });
 
-        $grouped = $subscriptions->groupBy('entitySourceName')->map(function($group) {
+        $grouped = $subscriptions->groupBy('entity_resource_name')->map(function($group) {
             $byStatus = $group->groupBy('status');
             
             $summary = [
@@ -379,7 +382,7 @@ class FilterController extends Controller
         return view('admin.filters.subscriptions', [
             'grouped' => $grouped,
             'selectedSources' => $selectedSources,
-            'allSources' => $subscriptionsAll->pluck('entitySourceName')->unique()->values()->toArray(),
+            'allSources' => $subscriptionsAll->pluck('entity_resource_name')->unique()->values()->toArray(),
             'startDate' => $startDate,
             'endDate' => $endDate,
             'totalStats' => $totalStats
@@ -470,12 +473,12 @@ class FilterController extends Controller
     private function calculateTransactions()
     {
         $rawDataBySource = [];
-        $transactions = config('app.transactions.data');
+        $transactions = Transaction::all();
         $selectedSources = request()->input('sources', []);
 
         foreach ($transactions as $transaction) {
-            $month = date('Y-m', strtotime($transaction->createdAt));
-            $sourceName = $transaction->entitySourceName ?? 'unknown';
+            $month = date('Y-m', strtotime($transaction->create_time));
+            $sourceName = $transaction->entity_resource_name ?? 'unknown';
             
             if (!empty($selectedSources) && !in_array(urlencode($sourceName), $selectedSources)) {
                 continue;
@@ -537,13 +540,6 @@ class FilterController extends Controller
                 $this->projectedData[$source] = $this->calculateProjections($processedData);
             }
         }
-    }
-
-    public function updateAllJSON()
-    {
-        $this->updateContacts();
-        $this->updateSubscriptions();
-        $this->updateTransactions();
     }
 
     private function updateContacts()

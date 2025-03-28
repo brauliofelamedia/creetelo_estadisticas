@@ -35,6 +35,10 @@
                         <label class="form-check-label" for="source-{{ $loop->index }}">{{ str_replace('- Payment', '', $sourceName) }}</label>
                     </div>
                 @endforeach
+                <div class="d-flex gap-2 mt-3">
+                    <button type="button" class="btn btn-sm btn-outline-primary" wire:click="selectAllSources">Seleccionar todo</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="deselectAllSources">Deseleccionar todo</button>
+                </div>
             </div>
             </div>
         </div>
@@ -75,8 +79,8 @@
                     @foreach($transactions as $transaction)
                     <tr>
                         <td class="d-none d-md-table-cell">{{ $loop->iteration }}</td>
-                        <td>{{ ucfirst($transaction->contactName) }}</td>
-                        <td class="d-none d-md-table-cell">{{ $transaction->contactEmail }}</td>
+                        <td>{{ ucfirst($transaction->name) }}</td>
+                        <td class="d-none d-md-table-cell">{{ $transaction->email }}</td>
                         <td>$ {{ number_format($transaction->amount) }} USD</td>
                         <td>{{ str_replace('- Payment', '', $transaction->entitySourceName) }}</td>
                         <td>
@@ -90,7 +94,7 @@
                                 <span class="badge bg-secondary text-white">{{ $transaction->status }}</span>
                             @endif
                         </td>
-                        <td class="d-none d-md-table-cell">{{ \Carbon\Carbon::parse($transaction->createdAt)->format('d-m-Y h:s') }}</td>
+                        <td class="d-none d-md-table-cell">{{ \Carbon\Carbon::parse($transaction->create_time)->format('d-m-Y') }}</td>
                     </tr>
                     @endforeach
                 @endif

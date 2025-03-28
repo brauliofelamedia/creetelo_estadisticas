@@ -25,7 +25,7 @@
                     </a>
                     <a href="{{route('contacts.index')}}">
                         <iconify-icon icon="ph:address-book" class="menu-icon"></iconify-icon>
-                        <span>Contacto</span>
+                        <span>Contactos</span>
                     </a>
                     <a href="{{route('transactions.index')}}">
                         <iconify-icon icon="ph:money" class="menu-icon"></iconify-icon>

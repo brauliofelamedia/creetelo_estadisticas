@@ -5,13 +5,13 @@ namespace App\Livewire;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Carbon\Carbon;
+use App\Models\Transaction;
+use Illuminate\Support\Facades\DB;
 
 class TransactionTable extends Component
 {
     use WithPagination;
 
-    public $country = '*';
-    public $date_filter = '*';
     public $search = '';
     public $perPage = 10;
     public $page = 1;
@@ -21,10 +21,9 @@ class TransactionTable extends Component
     public $source = [];
     public $startDate = '';
     public $endDate = '';
+    public $sourceNames = [];
 
     protected $queryString = [
-        'country' => ['except' => '*'],
-        'date_filter' => ['except' => '*'],
         'search' => ['except' => ''],
         'startDate' => ['except' => ''],
         'endDate' => ['except' => '']
@@ -32,10 +31,14 @@ class TransactionTable extends Component
 
     public function mount()
     {
-        $this->status = ['succeeded'];
-        $this->source = collect(Config('app.transactions.data'))->pluck('entitySourceName')->unique()->values()->toArray();
+        $this->source = ['funnel'];
+        $this->status = ['succeeded','refunded','failed'];
         $this->startDate = Carbon::now()->startOfMonth()->format('Y-m-d');
         $this->endDate = Carbon::now()->endOfMonth()->format('Y-m-d');
+        $this->sourceNames = Transaction::select('entity_resource_name')
+            ->distinct()
+            ->pluck('entity_resource_name')
+            ->toArray();
         $this->calculateTotalPages();
     }
 
@@ -69,62 +72,55 @@ class TransactionTable extends Component
 
     protected function getFilteredTransactions()
     {
-        $transactions = collect(Config('app.transactions.data'));
-        //dd($transactions[0]);
+        $query = Transaction::query();
 
         if ($this->search !== '') {
-            $transactions = $transactions->filter(function ($transaction) {
-                return str_contains(strtolower($transaction->contactName), strtolower($this->search));
+            $query->where(function ($q) {
+                $q->where('name', 'like', '%' . $this->search . '%')
+                  ->orWhere('email', 'like', '%' . $this->search . '%');
             });
         }
 
         if (!empty($this->status)) {
-            $transactions = $transactions->filter(function ($transaction) {
-                return in_array($transaction->status, $this->status);
-            });
+            $query->whereIn('status', $this->status);
         }
 
         if (!empty($this->source)) {
-            $transactions = $transactions->filter(function ($transaction) {
-                return in_array($transaction->entitySourceName, $this->source);
-            });
+            $query->whereIn('source_type', $this->source);
         }
 
         if ($this->startDate && $this->endDate) {
-            $transactions = $transactions->filter(function ($transaction) {
-                $transactionDate = Carbon::parse($transaction->createdAt);
-                $startDate = Carbon::parse($this->startDate)->startOfDay();
-                $endDate = Carbon::parse($this->endDate)->endOfDay();
-                return $transactionDate->between($startDate, $endDate);
-            });
+            $query->whereBetween('create_time', [
+                Carbon::parse($this->startDate)->startOfDay(),
+                Carbon::parse($this->endDate)->endOfDay()
+            ]);
         }
 
-        return $transactions;
+        return $query;
     }
 
     protected function getPaginatedTransactions()
     {
         return $this->getFilteredTransactions()
-            ->skip(($this->page - 1) * $this->perPage)
-            ->take($this->perPage);
+            ->offset(($this->page - 1) * $this->perPage)
+            ->limit($this->perPage)
+            ->get();
     }
 
     public function calculateTotalPages()
     {
-        $filteredTransactions = $this->getFilteredTransactions();
-        $this->totalPages = ceil($filteredTransactions->count() / $this->perPage);
+        $this->totalPages = ceil($this->getFilteredTransactions()->count() / $this->perPage);
     }
 
     public function render()
     {
         $this->calculateTotalPages();
         $transactions = $this->getPaginatedTransactions();
-        $totalAmount = $this->getFilteredTransactions()
-            ->filter(function ($transaction) {
-                return $transaction->status === 'succeeded';
-            })
-            ->sum('amount');
         
+        $totalAmount = $this->getFilteredTransactions()
+            ->where('status', 'succeeded')
+            ->sum('amount');
+
         $this->noResultsMessage = $transactions->isEmpty() 
             ? 'No se encontraron registros con los filtros aplicados.' 
             : '';
@@ -132,19 +128,25 @@ class TransactionTable extends Component
         return view('livewire.transaction-table', [
             'transactions' => $transactions,
             'totalAmount' => $totalAmount,
-            'countries' => collect(collect(Config('app.transactions.data'))->pluck('countryName')->unique()->values())
-                ->sort(function ($a, $b) {
-                    if ($a === 'United States') return -1;
-                    if ($b === 'United States') return 1;
-                    return $a <=> $b;
-                })->values()->toArray(),
-            'noResultsMessage' => $this->noResultsMessage,
-            'sourceNames' => collect(collect(Config('app.transactions.data'))->pluck('entitySourceName')->unique()->values())->sort()->values()->toArray()
+            'sourceNames' => $this->sourceNames,
+            'noResultsMessage' => $this->noResultsMessage
         ]);
     }
 
     public function updating($name)
     {
         $this->resetPage();
+    }
+
+    public function selectAllSources()
+    {
+        $this->source = $this->sourceNames;
+        $this->render();
+    }
+
+    public function deselectAllSources()
+    {
+        $this->source = [];
+        $this->render();
     }
 }

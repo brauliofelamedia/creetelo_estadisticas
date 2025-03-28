@@ -22,7 +22,7 @@ class SubscriptionController extends Controller
         try {
             $transactions = new Subscriptions();
             $transactionsCreated = 0;
-            $existingTransactions = 0;  // Nuevo contador
+            $existingTransactions = 0;
             $errors = [];
             $allSubscriptions = [];
 

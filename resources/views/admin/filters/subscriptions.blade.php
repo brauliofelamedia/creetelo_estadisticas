@@ -101,7 +101,7 @@
                             <div class="card bg-primary bg-opacity-10">
                                 <div class="card-body">
                                     <h6>Ingresos totales</h6>
-                                    <h5>${{ number_format($totalStats['total_amount'], 2) }}</h5>
+                                    <h5>${{ number_format($totalStats['total_amount'], 0) }} USD</h5>
                                 </div>
                             </div>
                         </div>
@@ -164,8 +164,8 @@
                                         <tbody>
                                             @foreach($sourceData[$status]['subscriptions'] as $subscription)
                                                 <tr>
-                                                    <td>{{ $subscription->contactName ?? 'N/A' }}</td>
-                                                    <td>{{ $subscription->contactEmail ?? 'N/A' }}</td>
+                                                    <td>{{ $subscription->contact->fullname ?? 'N/A' }}</td>
+                                                    <td>{{ $subscription->contact->email ?? 'N/A' }}</td>
                                                     <td>{{ Carbon\Carbon::parse($subscription->subscriptionStartDate)->format('Y-m-d') }}</td>
                                                     <td>{{ number_format($subscription->duration, 0) }}</td>
                                                     <td>${{ number_format($subscription->amount, 2) }}</td>

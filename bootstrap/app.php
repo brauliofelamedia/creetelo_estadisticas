@@ -16,7 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->web([
             CheckToken::class,
-            ChargeDataAPI::class,
+            //ChargeDataAPI::class,
         ]);
         $middleware->api([
             EnsureFrontendRequestsAreStateful::class,
