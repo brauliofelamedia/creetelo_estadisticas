@@ -609,52 +609,62 @@ class FilterController extends Controller
         });
 
         $grouped = $subscriptions->groupBy('entity_resource_name')->map(function($group) {
+            // Filter memberships only for summary statistics
+            $membershipsOnly = $group->filter(function($sub) {
+                return $sub->source_type === 'membership';
+            });
+            
             $byStatus = $group->groupBy('status');
+            $membershipsByStatus = $membershipsOnly->groupBy('status');
             
             $summary = [
                 'active' => [
                     'subscriptions' => $byStatus->get('active', collect())->values(),
-                    'count' => $byStatus->get('active', collect())->count(),
-                    'total_amount' => $byStatus->get('active', collect())->sum('amount'),
-                    'avg_duration' => $byStatus->get('active', collect())->avg('duration')
+                    'count' => $membershipsByStatus->get('active', collect())->count(),
+                    'total_amount' => $byStatus->get('active', collect())->sum('amount'), // Use all source types for amount
+                    'avg_duration' => $membershipsByStatus->get('active', collect())->avg('duration')
                 ],
                 'incomplete_expired' => [
                     'subscriptions' => $byStatus->get('incomplete_expired', collect())->values(),
-                    'count' => $byStatus->get('incomplete_expired', collect())->count(),
-                    'total_amount' => $byStatus->get('incomplete_expired', collect())->sum('amount'),
-                    'avg_duration' => $byStatus->get('incomplete_expired', collect())->avg('duration')
+                    'count' => $membershipsByStatus->get('incomplete_expired', collect())->count(),
+                    'total_amount' => $byStatus->get('incomplete_expired', collect())->sum('amount'), // Use all source types for amount
+                    'avg_duration' => $membershipsByStatus->get('incomplete_expired', collect())->avg('duration')
                 ],
                 'canceled' => [
                     'subscriptions' => $byStatus->get('canceled', collect())->values(),
-                    'count' => $byStatus->get('canceled', collect())->count(),
-                    'total_amount' => $byStatus->get('canceled', collect())->sum('amount'),
-                    'avg_duration' => $byStatus->get('canceled', collect())->avg('duration')
+                    'count' => $membershipsByStatus->get('canceled', collect())->count(),
+                    'total_amount' => $byStatus->get('canceled', collect())->sum('amount'), // Use all source types for amount
+                    'avg_duration' => $membershipsByStatus->get('canceled', collect())->avg('duration')
                 ],
                 'past_due' => [
                     'subscriptions' => $byStatus->get('past_due', collect())->values(),
-                    'count' => $byStatus->get('past_due', collect())->count(),
-                    'total_amount' => $byStatus->get('past_due', collect())->sum('amount'),
-                    'avg_duration' => $byStatus->get('past_due', collect())->avg('duration')
+                    'count' => $membershipsByStatus->get('past_due', collect())->count(),
+                    'total_amount' => $byStatus->get('past_due', collect())->sum('amount'), // Use all source types for amount
+                    'avg_duration' => $membershipsByStatus->get('past_due', collect())->avg('duration')
                 ],
                 'summary' => [
-                    'total_count' => $group->count(),
-                    'total_amount' => $group->where('status', 'active')->sum('amount'),
-                    'avg_duration' => $group->avg('duration')
+                    'total_count' => $membershipsOnly->count(),
+                    'total_amount' => $group->where('status', 'active')->sum('amount'), // Use all source types for total amount
+                    'avg_duration' => $membershipsOnly->avg('duration')
                 ]
             ];
 
             return $summary;
         });
 
-        // Calcular totales globales
+        // Calcular totales globales - counts solo para memberships, pero amounts para todos
+        $memberships = $subscriptions->filter(function($sub) {
+            return $sub->source_type === 'membership';
+        });
+        
         $totalStats = [
-            'active_count' => $subscriptions->where('status', 'active')->count(),
-            'incomplete_expired_count' => $subscriptions->where('status', 'incomplete_expired')->count(),
-            'canceled_count' => $subscriptions->where('status', 'canceled')->count(),
-            'past_due_count' => $subscriptions->where('status', 'past_due')->count(),
-            'total_amount' => $subscriptions->where('status', 'active')->sum('amount'),
-            'churn_rate' => $subscriptions->count() > 0 
-                ? ($subscriptions->where('status', 'canceled')->count() / $subscriptions->count()) * 100
+            'active_count' => $memberships->where('status', 'active')->count(),
+            'incomplete_expired_count' => $memberships->where('status', 'incomplete_expired')->count(),
+            'canceled_count' => $memberships->where('status', 'canceled')->count(),
+            'past_due_count' => $memberships->where('status', 'past_due')->count(),
+            'total_amount' => $subscriptions->where('status', 'active')->sum('amount'), // Use all subscriptions for total amount
+            'churn_rate' => $memberships->count() > 0 
+                ? ($memberships->where('status', 'canceled')->count() / $memberships->count()) * 100
                 : 0
         ];
 

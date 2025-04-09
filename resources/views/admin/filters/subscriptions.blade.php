@@ -153,11 +153,14 @@
                     
                     <!-- Resumen de la fuente -->
                     <div class="row mb-3">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <p class="text-muted mb-0"><strong>Total suscripciones:</strong> {{ $sourceData['summary']['total_count'] }}</p>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <p class="text-muted mb-0"><strong>Ingresos (solo activas):</strong> ${{ number_format($sourceData['summary']['total_amount'], 2) }} USD</p>
+                        </div>
+                        <div class="col-md-4">
+                            <p class="text-muted mb-0"><strong>Próximas renovaciones:</strong> {{ $sourceData['renewals']['count'] ?? 0 }}</p>
                         </div>
                     </div>
 
@@ -172,6 +175,13 @@
                                 </a>
                             </li>
                         @endforeach
+                        <li class="nav-item">
+                            <a class="nav-link" 
+                               data-bs-toggle="tab" 
+                               href="#renewals-{{ Str::slug($sourceName) }}">
+                                Próximas renovaciones ({{ $sourceData['renewals']['count'] ?? 0 }})
+                            </a>
+                        </li>
                     </ul>
 
                     <div class="tab-content">
@@ -210,6 +220,44 @@
                                 </div>
                             </div>
                         @endforeach
+                        
+                        <!-- Nueva pestaña para renovaciones próximas -->
+                        <div class="tab-pane fade" id="renewals-{{ Str::slug($sourceName) }}">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Nombre</th>
+                                            <th>Tipo de fuente</th>
+                                            <th>Fecha de inicio</th>
+                                            <th>Fecha de renovación</th>
+                                            <th>Monto</th>
+                                            <th>Estado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @if(isset($sourceData['renewals']['subscriptions']) && count($sourceData['renewals']['subscriptions']) > 0)
+                                            @foreach($sourceData['renewals']['subscriptions'] as $subscription)
+                                                <tr>
+                                                    <td>{{ $subscription->contact->fullname ?? 'N/A' }}</td>
+                                                    <td>{{ $subscription->source_type ?? 'N/A' }}</td>
+                                                    <td>{{ Carbon\Carbon::parse($subscription->subscriptionStartDate)->format('Y-m-d') }}</td>
+                                                    <td>{{ Carbon\Carbon::parse($subscription->renewalDate)->format('Y-m-d') }}</td>
+                                                    <td>${{ number_format($subscription->amount, 2) }}</td>
+                                                    <td>
+                                                        <span class="badge bg-info">Próxima renovación</span>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        @else
+                                            <tr>
+                                                <td colspan="6" class="text-center">No hay renovaciones próximas para este período</td>
+                                            </tr>
+                                        @endif
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             @endforeach
