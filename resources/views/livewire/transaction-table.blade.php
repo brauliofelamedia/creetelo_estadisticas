@@ -14,34 +14,62 @@
             <label class="form-check-label" for="status-refunded">Reembolso</label>
             </div>
         </div>
-        <!-- Floating Filter Button -->
+
+        <!-- Single Floating Filter Button -->
         <div class="col-auto">
             <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#filterSidebar">
-            <i class="fas fa-filter"></i> Membresías
+            <i class="fas fa-filter"></i> Filtros
             </button>
         </div>
 
-        <!-- Floating Sidebar -->
+        <!-- Combined Floating Sidebar for Source Types and Source Names -->
         <div class="offcanvas offcanvas-end" tabindex="-1" id="filterSidebar" style="max-width: 450px;" wire:ignore.self>
             <div class="offcanvas-header">
-            <h6 class="offcanvas-title">Filtros por membresía</h6>
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
             </div>
             <div class="offcanvas-body">
-            <div class="d-flex flex-column w-100">
-                @foreach($sourceNames as $sourceName)
-                    <div class="form-check mb-2" style="font-size: 0.9rem;">
-                        <input wire:model.defer="source" wire:change="$refresh" class="form-check-input form-check-input-sm" type="checkbox" value="{{ $sourceName }}" id="source-{{ $loop->index }}" {{ !$source || in_array($sourceName, $source) ? 'checked' : '' }}>
-                        <label class="form-check-label" for="source-{{ $loop->index }}">{{ str_replace('- Payment', '', $sourceName) }}</label>
+                <!-- Source Types Section -->
+                <div class="mb-4">
+                    <h6 class="mb-3 border-bottom pb-2">Tipos de fuente</h6>
+                    <div class="d-flex flex-column w-100">
+                        @foreach($sourceTypeNames as $sourceTypeName)
+                            <div class="form-check mb-2" style="font-size: 0.9rem;">
+                                <input wire:model.live="sourceType" class="form-check-input form-check-input-sm" type="checkbox" value="{{ $sourceTypeName }}" id="sourceType-{{ $loop->index }}">
+                                <label class="form-check-label" for="sourceType-{{ $loop->index }}">{{ $sourceTypeName }}</label>
+                            </div>
+                        @endforeach
+                        <div class="d-flex gap-2 mt-2 mb-3">
+                            <button type="button" class="btn btn-sm btn-outline-primary" wire:click="selectAllSourceTypes">Seleccionar todo</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="deselectAllSourceTypes">Deseleccionar todo</button>
+                        </div>
                     </div>
-                @endforeach
-                <div class="d-flex gap-2 mt-3">
-                    <button type="button" class="btn btn-sm btn-outline-primary" wire:click="selectAllSources">Seleccionar todo</button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="deselectAllSources">Deseleccionar todo</button>
+                </div>
+
+                <!-- Source Names Section -->
+                <div>
+                    <h6 class="mb-3 border-bottom pb-2">Nombres de fuente</h6>
+                    <div class="d-flex flex-column w-100">
+                        @if(empty($filteredSourceNames))
+                            <div class="alert alert-info">
+                                Seleccione al menos un tipo de fuente para ver las opciones disponibles
+                            </div>
+                        @else
+                            @foreach($filteredSourceNames as $sourceName)
+                                <div class="form-check mb-2" style="font-size: 0.9rem;">
+                                    <input wire:model.live="source" class="form-check-input form-check-input-sm" type="checkbox" value="{{ $sourceName }}" id="source-{{ $loop->index }}">
+                                    <label class="form-check-label" for="source-{{ $loop->index }}">{{ str_replace('- Payment', '', $sourceName) }}</label>
+                                </div>
+                            @endforeach
+                            <div class="d-flex gap-2 mt-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary" wire:click="selectAllSources" @if(empty($filteredSourceNames)) disabled @endif>Seleccionar todo</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="deselectAllSources" @if(empty($filteredSourceNames)) disabled @endif>Deseleccionar todo</button>
+                            </div>
+                        @endif
+                    </div>
                 </div>
             </div>
-            </div>
         </div>
+        
         <div class="col-auto">
             <input type="date" wire:model.live="startDate" class="form-control" placeholder="Fecha inicial">
         </div>
@@ -59,9 +87,9 @@
                 <tr>
                     <th class="d-none d-md-table-cell">#</th>
                     <th>Nombre</th>
-                    <th class="d-none d-md-table-cell">Correo</th>
+                    <th class="d-none d-md-table-cell">SourceType</th>
                     <th>Monto</th>
-                    <th>Membresia</th>
+                    <th>Nombre</th>
                     <th>Estatus</th>
                     <th class="d-none d-md-table-cell">Fecha de creación</th>
                 </tr>
@@ -80,9 +108,9 @@
                     <tr>
                         <td class="d-none d-md-table-cell">{{ $loop->iteration }}</td>
                         <td>{{ ucfirst($transaction->name) }}</td>
-                        <td class="d-none d-md-table-cell">{{ $transaction->email }}</td>
+                        <td class="d-none d-md-table-cell">{{ $transaction->source_type }}</td>
                         <td>$ {{ number_format($transaction->amount) }} USD</td>
-                        <td>{{ str_replace('- Payment', '', $transaction->entitySourceName) }}</td>
+                        <td>{{ str_replace('- Payment', '', $transaction->entity_resource_name) }}</td>
                         <td>
                             @if($transaction->status === 'succeeded')
                                 <span class="badge bg-success text-white">Exitoso</span>
@@ -157,4 +185,12 @@
 @endpush
 
 @push('scripts')
+<script>
+    document.addEventListener('livewire:initialized', function () {
+        // Listen for when user selects a sourceType to update sidebar content
+        Livewire.on('select2:updated', function () {
+            // This is already handled by Livewire, but we can add custom behavior if needed
+        });
+    });
+</script>
 @endpush

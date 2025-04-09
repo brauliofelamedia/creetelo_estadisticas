@@ -40,8 +40,28 @@ class DatabaseSeeder extends Seeder
             'password' => Hash::make('password')
         ]);
 
+        $adam = User::create([
+            'name' => 'Adam',
+            'last_name' => 'Stramwasser',
+            'email' => 'adam@creetelo.club',
+            'phone' => '1234567890',
+            'bio' => 'I am a Admin',
+            'password' => Hash::make('Creetelo@club123')
+        ]);
+
+        $michelle = User::create([
+            'name' => 'Michelle',
+            'last_name' => 'Poler',
+            'email' => 'michelle@creetelo.club',
+            'phone' => '1234567890',
+            'bio' => 'I am a Admin',
+            'password' => Hash::make('Creetelo@club123')
+        ]);
+
         $braulio->assignRole('super_admin');
         $jorge->assignRole('admin');
+        $michelle->assignRole('admin');
+        $adam->assignRole('admin');
         $testing->assignRole('admin');
     }
 }

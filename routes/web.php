@@ -289,12 +289,14 @@ Route::middleware('auth')->prefix('dashboard')->group(function () {
 
     //Filters
     Route::prefix('filters')->group(function () {
+        Route::get('sourcestype',[FilterController::class,'getSourcesByType'])->name('get.sources.type');
         Route::get('/',[FilterController::class,'filters'])->name('filters');
         Route::get('day',[FilterController::class,'comparationForDay'])->name('filters.day');
         Route::get('month',[FilterController::class,'comparationForMonth'])->name('filters.month');
         Route::get('projection',[FilterController::class,'projection'])->name('filters.projection');
         Route::get('subscriptions',[FilterController::class,'subscriptions'])->name('filters.subscriptions');
         Route::get('updateAllJson',[FilterController::class,'updateAllJSON'])->name('update.json');
+        Route::get('sources-by-type', [FilterController::class, 'getSourcesByType'])->name('filters.sources-by-type');
     });
 
     //Sync

@@ -34,6 +34,30 @@
                                     <input type="date" class="form-control" name="end_date" value="{{($endDate)? $endDate : \Carbon\Carbon::now()->endOfWeek()->format('Y-m-d') }}">
                                 </div>
                                 <hr style="margin:10px 0;">
+                                
+                                <!-- Source Type Filters -->
+                                <div class="form-group mb-10">
+                                    <label class="label-bold">Tipos de fuente</label>
+                                    @foreach($typeSources as $key => $sourceType)
+                                        <div class="form-check mb-2" style="font-size: 0.9rem;">
+                                            <input class="form-check-input form-check-input-sm" 
+                                                name="source_types[]" 
+                                                type="checkbox" 
+                                                id="source-type-{{ $key }}" 
+                                                value="{{ urlencode($sourceType) }}"
+                                                {{ in_array($sourceType, $selectedSourceTypes ?? []) ? 'checked' : '' }}>
+                                                <label class="form-check-label" for="source-type-{{ $key }}">
+                                                    {{ $sourceType }}
+                                                </label>
+                                        </div>
+                                    @endforeach
+                                    <div class="d-flex gap-2 mb-3">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" style="width:100%;" id="selectAllTypes">Seleccionar</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" style="width:100%;" id="deselectAllTypes">Deseleccionar</button>
+                                    </div>
+                                </div>
+                                
+                                <hr style="margin:10px 0;">
                                 <div class="form-group mb-10">
                                     <label class="label-bold">Membresías</label>
                                     @foreach($allSources as $key => $source)
@@ -159,7 +183,7 @@
                                         <thead>
                                             <tr>
                                                 <th>Nombre</th>
-                                                <th>Email</th>
+                                                <th>Tipo de fuente</th>
                                                 <th>Inicio</th>
                                                 <th>Duración (días)</th>
                                                 <th>Monto</th>
@@ -170,7 +194,7 @@
                                             @foreach($sourceData[$status]['subscriptions'] as $subscription)
                                                 <tr>
                                                     <td>{{ $subscription->contact->fullname ?? 'N/A' }}</td>
-                                                    <td>{{ $subscription->contact->email ?? 'N/A' }}</td>
+                                                    <td>{{ $subscription->source_type ?? 'N/A' }}</td>
                                                     <td>{{ Carbon\Carbon::parse($subscription->subscriptionStartDate)->format('Y-m-d') }}</td>
                                                     <td>{{ number_format($subscription->duration, 0) }}</td>
                                                     <td>${{ number_format($subscription->amount, 2) }}</td>
@@ -237,6 +261,15 @@
         
         $('#deselectAll').click(function() {
             $('input[name="sources[]"]').prop('checked', false);
+        });
+        
+        // Source type select/deselect functionality
+        $('#selectAllTypes').click(function() {
+            $('input[name="source_types[]"]').prop('checked', true);
+        });
+        
+        $('#deselectAllTypes').click(function() {
+            $('input[name="source_types[]"]').prop('checked', false);
         });
     });
 

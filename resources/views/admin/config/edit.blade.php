@@ -73,7 +73,7 @@
                   <input type="text" name="access_token" class="form-control" value="{{ $config->access_token ?? '' }}" readonly>
                 </div>
                 <div class="col-12 d-flex gap-2">
-                  <a href="{{route('renewToken')}}" class="btn btn-primary">Refresh Token</a>
+                  <a href="{{route('renew.token')}}" class="btn btn-primary">Refresh Token</a>
                   <a href="{{route('connect')}}" class="btn btn-secondary">Conectar GHL</a>
                 </div>
               </div>

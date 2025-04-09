@@ -108,30 +108,18 @@
         </div>
 
         <div class="row gy-4 mt-1">
+            
             <div class="col-xxl-6 col-xl-12">
                 <div class="card h-100">
                     <div class="card-body">
                         <div class="d-flex flex-wrap align-items-center justify-content-between">
-                            <h6 class="text-lg mb-0">Ingresos año pasado</h6>
+                            <h6 class="text-lg mb-0">Ingresos año actual vs anterior</h6>
                         </div>
                         <div class="d-flex flex-wrap align-items-center gap-2 mt-8">
-                            <h6 class="mb-0">${{number_format($totalLastYear,0)}} USD</h6>
+                            <h6 class="mb-0">${{number_format($totalCurrentYear,0)}} USD (año actual)</h6>
                         </div>
-                        <div id="chartLastYear" class="pt-28 apexcharts-tooltip-style-1"></div>
+                        <div id="chart" class="pt-28 apexcharts-tooltip-style-1"></div>
                     </div>
-                </div>
-            </div>
-            <div class="col-xxl-6 col-xl-12">
-                <div class="card h-100">
-                <div class="card-body">
-                    <div class="d-flex flex-wrap align-items-center justify-content-between">
-                        <h6 class="text-lg mb-0">Ingresos año actual</h6>
-                    </div>
-                    <div class="d-flex flex-wrap align-items-center gap-2 mt-8">
-                    <h6 class="mb-0">${{number_format($totalCurrentYear,0)}} USD</h6>
-                </div>
-                    <div id="chart" class="pt-28 apexcharts-tooltip-style-1"></div>
-                </div>
                 </div>
             </div>
             <div class="col-xxl-3 col-xl-6">
@@ -192,66 +180,6 @@
                     </div>
                 </div>
             </div>
-            <div class="col-xxl-9 col-xl-12">
-                <div class="card h-100">
-                    <div class="card-body p-24">
-
-                    <div class="d-flex flex-wrap align-items-center gap-1 justify-content-between mb-16">
-                        <ul class="nav border-gradient-tab nav-pills mb-0" id="pills-tab" role="tablist">
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link d-flex align-items-center active" id="pills-to-do-list-tab" data-bs-toggle="pill" data-bs-target="#pills-to-do-list" type="button" role="tab" aria-controls="pills-to-do-list" aria-selected="true">
-                                    Último registrados
-                                <span class="text-sm fw-semibold py-6 px-12 bg-neutral-500 rounded-pill text-white line-height-1 ms-12 notification-alert">{{$currentUsers}}</span>
-                                </button>
-                            </li>
-                        </ul>
-                        <a href="{{route('users.index')}}" class="text-primary-600 hover-text-primary d-flex align-items-center gap-1"> Ver todos
-                        <iconify-icon icon="solar:alt-arrow-right-linear" class="icon"></iconify-icon>
-                        </a>
-                    </div>
-                    <div class="tab-content" id="pills-tabContent">   
-                        <div class="tab-pane fade show active" id="pills-to-do-list" role="tabpanel" aria-labelledby="pills-to-do-list-tab" tabindex="0">
-                            <div class="table-responsive scroll-sm">
-                                <table class="table bordered-table sm-table mb-0">
-                                <thead>
-                                    <tr>
-                                    <th scope="col">Usuario </th>
-                                    <th scope="col">Registrado</th>
-                                    <th scope="col">Rol</th>
-                                    <th scope="col" class="text-center">Estatus</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($latestUsers as $user)
-                                        <tr>
-                                            <td>
-                                                <div class="d-flex align-items-center">
-                                                <img src="{{asset('storage/'.$user->avatar)}}" alt="" class="w-40-px h-40-px rounded-circle flex-shrink-0 me-12 overflow-hidden">
-                                                <div class="flex-grow-1">
-                                                    <h6 class="text-md mb-0 fw-medium">{{$user->fullname}}</h6>
-                                                    <span class="text-sm text-secondary-light fw-medium">{{$user->email}}</span>
-                                                </div>
-                                                </div>
-                                            </td>
-                                            <td>{{$user->created_at->format('d-m-Y')}}</td>
-                                            <td>{{$user->role}}</td>
-                                            <td class="text-center"> 
-                                                @if($user->status == true)
-                                                    <span class="bg-success-focus text-success-main px-24 py-4 rounded-pill fw-medium text-sm">Activo</span>
-                                                @else
-                                                    <span class="bg-danger-focus text-danger-main px-24 py-4 rounded-pill fw-medium text-sm">Inactivo</span>
-                                                @endif
-                                            </td>
-                                        </tr> 
-                                    @endforeach
-                                </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                </div>
-            </div>
         </div>
     </div>
 @endsection
@@ -259,118 +187,16 @@
 @push('scripts')
 <script>
     var options = {
-        series: [{
-        name: "Este mes",
-        data: {!! json_encode($monthlyAmounts) !!}
-        }],
-        chart: {
-        height: 264,
-        type: 'line',
-        toolbar: {
-            show: false
-        },
-        zoom: {
-            enabled: false
-        },
-        dropShadow: {
-            enabled: true,
-            top: 6,
-            left: 0,
-            blur: 4,
-            color: "#000",
-            opacity: 0.1,
-        },
-        },
-        dataLabels: {
-        enabled: false
-        },
-        stroke: {
-        curve: 'smooth',
-        colors: ['#487FFF'],
-        width: 3
-        },
-        markers: {
-        size: 0,
-        strokeWidth: 3,
-        hover: {
-            size: 8
-        }
-        },
-        tooltip: {
-        enabled: true,
-        x: {
-            show: true,
-        },
-        y: {
-            show: false,
-        },
-        z: {
-            show: false,
-        }
-        },
-        grid: {
-        row: {
-            colors: ['transparent', 'transparent'],
-            opacity: 0.5
-        },
-        borderColor: '#D1D5DB',
-        strokeDashArray: 3,
-        },
-        yaxis: {
-        labels: {
-            formatter: function (value) {
-            return "$" + value + " USD";
+        series: [
+            {
+                name: "Este año",
+                data: {!! json_encode($monthlyAmounts) !!}
             },
-            style: {
-            fontSize: "14px"
+            {
+                name: "Año anterior",
+                data: {!! json_encode($lastYearMonthlyAmounts) !!}
             }
-        },
-        },
-        xaxis: {
-        categories: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
-        tooltip: {
-            enabled: false
-        },
-        labels: {
-            formatter: function (value) {
-            return value;
-            },
-            style: {
-            fontSize: "14px"
-            }
-        },
-        axisBorder: {
-            show: false
-        },
-        crosshairs: {
-            show: true,
-            width: 20,
-            stroke: {
-            width: 0
-            },
-            fill: {
-            type: 'solid',
-            color: '#487FFF40',
-            // gradient: {
-            //   colorFrom: '#D8E3F0',
-            //   // colorTo: '#BED1E6',
-            //   stops: [0, 100],
-            //   opacityFrom: 0.4,
-            //   opacityTo: 0.5,
-            // },
-            }
-        }
-        }
-    };
-    var chart = new ApexCharts(document.querySelector("#chart"), options);
-    chart.render();
-</script>
-<script>
-    var optionsLastYear = {
-        series: [{
-            name: "Año pasado",
-            data: {!! json_encode($lastYearMonthlyAmounts) !!}
-        }],
+        ],
         chart: {
             height: 264,
             type: 'line',
@@ -394,9 +220,133 @@
         },
         stroke: {
             curve: 'smooth',
-            colors: ['#FF9F29'],
             width: 3
         },
+        colors: ['#487FFF', '#FF9F29'],
+        markers: {
+            size: 0,
+            strokeWidth: 3,
+            hover: {
+                size: 8
+            }
+        },
+        tooltip: {
+            enabled: true,
+            x: {
+                show: true,
+            },
+            y: {
+                show: false,
+            },
+            z: {
+                show: false,
+            }
+        },
+        grid: {
+            row: {
+                colors: ['transparent', 'transparent'],
+                opacity: 0.5
+            },
+            borderColor: '#D1D5DB',
+            strokeDashArray: 3,
+        },
+        yaxis: {
+            labels: {
+                formatter: function (value) {
+                    return "$" + value + " USD";
+                },
+                style: {
+                    fontSize: "14px"
+                }
+            },
+        },
+        xaxis: {
+            categories: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+            tooltip: {
+                enabled: false
+            },
+            labels: {
+                formatter: function (value) {
+                    return value;
+                },
+                style: {
+                    fontSize: "14px"
+                }
+            },
+            axisBorder: {
+                show: false
+            },
+            crosshairs: {
+                show: true,
+                width: 20,
+                stroke: {
+                    width: 0
+                },
+                fill: {
+                    type: 'solid',
+                    color: '#487FFF40',
+                }
+            }
+        },
+        legend: {
+            show: true,
+            position: 'top',
+            horizontalAlign: 'right',
+            fontSize: '14px',
+            fontFamily: 'Inter, sans-serif',
+            offsetY: -30,
+            markers: {
+                width: 10,
+                height: 10,
+                radius: 12,
+            },
+            itemMargin: {
+                horizontal: 10,
+                vertical: 0
+            },
+        }
+    };
+    var chart = new ApexCharts(document.querySelector("#chart"), options);
+    chart.render();
+</script>
+<script>
+    var optionsLastYear = {
+        series: [
+            {
+                name: "Año anterior",
+                data: {!! json_encode($lastYearMonthlyAmounts) !!}
+            },
+            {
+                name: "Dos años atrás",
+                data: {!! json_encode($lastYearMonthlyAmounts) ?? json_encode(array_fill(0, 12, 0)) !!} // Reemplazar con datos reales de 2 años atrás si están disponibles
+            }
+        ],
+        chart: {
+            height: 264,
+            type: 'line',
+            toolbar: {
+                show: false
+            },
+            zoom: {
+                enabled: false
+            },
+            dropShadow: {
+                enabled: true,
+                top: 6,
+                left: 0,
+                blur: 4,
+                color: "#000",
+                opacity: 0.1,
+            },
+        },
+        dataLabels: {
+            enabled: false
+        },
+        stroke: {
+            curve: 'smooth',
+            width: 3
+        },
+        colors: ['#FF9F29', '#34D399'],
         markers: {
             size: 0,
             strokeWidth: 3,
@@ -461,6 +411,23 @@
                     color: '#FF9F2940',
                 }
             }
+        },
+        legend: {
+            show: true,
+            position: 'top',
+            horizontalAlign: 'right',
+            fontSize: '14px',
+            fontFamily: 'Inter, sans-serif',
+            offsetY: -30,
+            markers: {
+                width: 10,
+                height: 10,
+                radius: 12,
+            },
+            itemMargin: {
+                horizontal: 10,
+                vertical: 0
+            },
         }
     };
     var chartLastYear = new ApexCharts(document.querySelector("#chartLastYear"), optionsLastYear);

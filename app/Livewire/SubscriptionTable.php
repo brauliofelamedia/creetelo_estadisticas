@@ -2,7 +2,7 @@
 
 namespace App\Livewire;
 
-use App\Models\Transaction;
+use App\Models\Subscription;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Carbon\Carbon;
@@ -20,26 +20,58 @@ class SubscriptionTable extends Component
     public $noResultsMessage = '';
     public $status = [];
     public $source = [];
+    public $source_type = [];
     public $startDate = '';
     public $endDate = '';
     public $sourceNames = [];
+    public $sourceTypes = [];
+    public $filteredSourceNames = [];
 
     protected $queryString = [
         'country' => ['except' => '*'],
         'date_filter' => ['except' => '*'],
         'search' => ['except' => ''],
         'startDate' => ['except' => ''],
-        'endDate' => ['except' => '']
+        'endDate' => ['except' => ''],
+        'source_type' => ['except' => []]
     ];
 
     public function mount()
     {
-        $this->status = ['succeeded'];
-        $this->source = Transaction::pluck('entity_resource_name')->unique()->values()->toArray();
+        $this->sourceTypes = Subscription::select('source_type')
+            ->distinct()
+            ->whereNotNull('source_type')
+            ->pluck('source_type')
+            ->toArray();
+        
+        $this->sourceNames = Subscription::select('entity_resource_name')
+            ->distinct()
+            ->whereNotNull('entity_resource_name')
+            ->pluck('entity_resource_name')
+            ->toArray();
+        
+        $this->filteredSourceNames = $this->sourceNames;
+        $this->source = $this->sourceNames;
+        $this->source_type = $this->sourceTypes;
+        $this->status = ['active', 'canceled', 'incomplete_expired', 'past_due'];
         $this->startDate = Carbon::now()->startOfMonth()->format('Y-m-d');
         $this->endDate = Carbon::now()->endOfMonth()->format('Y-m-d');
-        $this->sourceNames = $this->source;
         $this->calculateTotalPages();
+    }
+
+    // New method to filter source names based on selected source types
+    public function getFilteredSourceNames()
+    {
+        if (empty($this->source_type)) {
+            return [];
+        }
+
+        return Subscription::select('entity_resource_name')
+            ->distinct()
+            ->whereNotNull('entity_resource_name')
+            ->whereIn('source_type', $this->source_type)
+            ->pluck('entity_resource_name')
+            ->toArray();
     }
 
     public function nextPage()
@@ -64,84 +96,99 @@ class SubscriptionTable extends Component
 
     public function updated($propertyName)
     {
-        if (in_array($propertyName, ['status', 'source'])) {
+        if (in_array($propertyName, ['status', 'source', 'source_type'])) {
             $this->dispatch('select2:updated');
+            
+            // Update filtered source names when source_type changes
+            if ($propertyName === 'source_type') {
+                $this->filteredSourceNames = $this->getFilteredSourceNames();
+                
+                // Update source to only include valid options
+                $this->source = array_intersect($this->source, $this->filteredSourceNames);
+                if (empty($this->source) && !empty($this->filteredSourceNames)) {
+                    $this->source = $this->filteredSourceNames;
+                }
+            }
         }
         $this->resetPage();
     }
 
-    protected function getFilteredTransactions()
+    protected function getFilteredSubscriptions()
     {
-        $transactions = Transaction::all();
+        $query = Subscription::query();
 
         if ($this->search !== '') {
-            $transactions = $transactions->filter(function ($transaction) {
-                return str_contains(strtolower($transaction->name), strtolower($this->search));
+            $query->whereHas('contact', function($q) {
+                $q->where('first_name', 'like', '%' . $this->search . '%')
+                  ->orWhere('last_name', 'like', '%' . $this->search . '%');
             });
         }
 
         if (!empty($this->status)) {
-            $transactions = $transactions->filter(function ($transaction) {
-                return in_array($transaction->status, $this->status);
-            });
+            $query->whereIn('status', $this->status);
         }
 
         if (!empty($this->source)) {
-            $transactions = $transactions->filter(function ($transaction) {
-                return in_array($transaction->entity_resource_name, $this->source);
-            });
+            $query->whereIn('entity_resource_name', $this->source);
+        } else {
+            // Si no hay fuentes seleccionadas, no mostrar resultados
+            $query->where('id', 0);
+        }
+
+        if (!empty($this->source_type)) {
+            $query->whereIn('source_type', $this->source_type);
         }
 
         if ($this->startDate && $this->endDate) {
-            $transactions = $transactions->filter(function ($transaction) {
-                $transactionDate = Carbon::parse($transaction->create_time);
-                $startDate = Carbon::parse($this->startDate)->startOfDay();
-                $endDate = Carbon::parse($this->endDate)->endOfDay();
-                return $transactionDate->between($startDate, $endDate);
-            });
+            $query->whereBetween('create_time', [
+                Carbon::parse($this->startDate)->startOfDay(),
+                Carbon::parse($this->endDate)->endOfDay()
+            ]);
         }
 
-        return $transactions;
+        return $query;
     }
 
-    protected function getPaginatedTransactions()
+    protected function getPaginatedSubscriptions()
     {
-        return $this->getFilteredTransactions()
-            ->skip(($this->page - 1) * $this->perPage)
-            ->take($this->perPage);
+        return $this->getFilteredSubscriptions()
+            ->paginate($this->perPage, ['*'], 'page', $this->page);
     }
 
     public function calculateTotalPages()
     {
-        $filteredTransactions = $this->getFilteredTransactions();
-        $this->totalPages = ceil($filteredTransactions->count() / $this->perPage);
+        $this->totalPages = ceil($this->getFilteredSubscriptions()->count() / $this->perPage);
     }
 
     public function render()
     {
         $this->calculateTotalPages();
-        $transactions = $this->getPaginatedTransactions();
-        $totalAmount = $this->getFilteredTransactions()
-            ->filter(function ($transaction) {
-                return $transaction->status === 'succeeded';
-            })
+        $subscriptions = $this->getPaginatedSubscriptions();
+        
+        $totalAmount = $this->getFilteredSubscriptions()
+            ->where('status', 'active')
             ->sum('amount');
         
-        $this->noResultsMessage = $transactions->isEmpty() 
+        $this->noResultsMessage = $subscriptions->isEmpty() 
             ? 'No se encontraron registros con los filtros aplicados.' 
             : '';
 
-        return view('livewire.transaction-table', [
-            'transactions' => $transactions,
+        // Get filtered source names based on selected source types
+        $this->filteredSourceNames = $this->getFilteredSourceNames();
+
+        return view('livewire.subscription-table', [
+            'subscriptions' => $subscriptions,
             'totalAmount' => $totalAmount,
-            'countries' => collect(collect(Config('app.transactions.data'))->pluck('countryName')->unique()->values())
-                ->sort(function ($a, $b) {
-                    if ($a === 'United States') return -1;
-                    if ($b === 'United States') return 1;
-                    return $a <=> $b;
-                })->values()->toArray(),
             'noResultsMessage' => $this->noResultsMessage,
-            'sourceNames' => collect(collect(Config('app.transactions.data'))->pluck('entitySourceName')->unique()->values())->sort()->values()->toArray()
+            'filteredSourceNames' => $this->filteredSourceNames,
+            'sourceNames' => $this->sourceNames,
+            'sourceTypes' => Subscription::select('source_type')
+                ->distinct()
+                ->whereNotNull('source_type')
+                ->orderBy('source_type')
+                ->pluck('source_type')
+                ->values()
+                ->toArray()
         ]);
     }
 
@@ -152,13 +199,25 @@ class SubscriptionTable extends Component
 
     public function selectAllSources()
     {
-        $this->source = $this->sourceNames;
-        $this->render();
+        $this->source = $this->filteredSourceNames;
+        $this->resetPage();
     }
 
     public function deselectAllSources()
     {
         $this->source = [];
-        $this->render();
+        $this->resetPage();
+    }
+
+    public function selectAllSourceTypes()
+    {
+        $this->source_type = $this->sourceTypes;
+        $this->resetPage();
+    }
+
+    public function deselectAllSourceTypes()
+    {
+        $this->source_type = [];
+        $this->resetPage();
     }
 }

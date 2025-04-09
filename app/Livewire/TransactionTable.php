@@ -22,6 +22,10 @@ class TransactionTable extends Component
     public $startDate = '';
     public $endDate = '';
     public $sourceNames = [];
+    public $sourceTypes = [];
+    public $sourceTypeNames = [];
+    public $sourceType = []; 
+    public $filteredSourceNames = []; // New property to store filtered sourceNames
 
     protected $queryString = [
         'search' => ['except' => ''],
@@ -31,14 +35,24 @@ class TransactionTable extends Component
 
     public function mount()
     {
-        $this->source = ['membership'];
+        $this->sourceNames = Transaction::select('entity_resource_name')
+            ->distinct()
+            ->whereNotNull('entity_resource_name')
+            ->pluck('entity_resource_name')
+            ->toArray();
+            
+        $this->sourceTypeNames = Transaction::select('entity_source_type')
+            ->distinct()
+            ->whereNotNull('entity_source_type')
+            ->pluck('entity_source_type')
+            ->toArray();
+            
+        $this->source = $this->sourceNames;
+        $this->sourceType = $this->sourceTypeNames;
+        $this->filteredSourceNames = $this->sourceNames; // Initialize with all source names
         $this->status = ['succeeded','refunded','failed'];
         $this->startDate = Carbon::now()->startOfMonth()->format('Y-m-d');
         $this->endDate = Carbon::now()->endOfMonth()->format('Y-m-d');
-        $this->sourceNames = Transaction::select('entity_resource_name')
-            ->distinct()
-            ->pluck('entity_resource_name')
-            ->toArray();
         $this->calculateTotalPages();
     }
 
@@ -67,6 +81,13 @@ class TransactionTable extends Component
         if (in_array($propertyName, ['status', 'source'])) {
             $this->dispatch('select2:updated');
         }
+        
+        if ($propertyName === 'sourceType') {
+            $this->updateFilteredSourceNames();
+            // Reset source selection when sourceType changes
+            $this->source = array_intersect($this->source, $this->filteredSourceNames);
+        }
+        
         $this->resetPage();
     }
 
@@ -85,8 +106,14 @@ class TransactionTable extends Component
             $query->whereIn('status', $this->status);
         }
 
+        // Solo aplicar el filtro de fuentes si hay alguna seleccionada
         if (!empty($this->source)) {
-            $query->whereIn('source_type', $this->source);
+            $query->whereIn('entity_resource_name', $this->source);
+        }
+        
+        // Aplicar filtro de tipos de fuente si hay alguno seleccionado
+        if (!empty($this->sourceType)) {
+            $query->whereIn('entity_source_type', $this->sourceType);
         }
 
         if ($this->startDate && $this->endDate) {
@@ -112,10 +139,30 @@ class TransactionTable extends Component
         $this->totalPages = ceil($this->getFilteredTransactions()->count() / $this->perPage);
     }
 
+    // New method to update filteredSourceNames based on selected sourceTypes
+    public function updateFilteredSourceNames()
+    {
+        if (empty($this->sourceType)) {
+            $this->filteredSourceNames = []; // If no sourceType selected, show no sources
+            return;
+        }
+        
+        // Get sourceNames that match the selected sourceTypes
+        $this->filteredSourceNames = Transaction::select('entity_resource_name')
+            ->distinct()
+            ->whereNotNull('entity_resource_name')
+            ->whereIn('entity_source_type', $this->sourceType)
+            ->pluck('entity_resource_name')
+            ->toArray();
+    }
+
     public function render()
     {
         $this->calculateTotalPages();
         $transactions = $this->getPaginatedTransactions();
+        
+        // Update filteredSourceNames before rendering
+        $this->updateFilteredSourceNames();
         
         $totalAmount = $this->getFilteredTransactions()
             ->where('status', 'succeeded')
@@ -129,6 +176,8 @@ class TransactionTable extends Component
             'transactions' => $transactions,
             'totalAmount' => $totalAmount,
             'sourceNames' => $this->sourceNames,
+            'filteredSourceNames' => $this->filteredSourceNames,
+            'sourceTypeNames' => $this->sourceTypeNames,
             'noResultsMessage' => $this->noResultsMessage
         ]);
     }
@@ -140,13 +189,25 @@ class TransactionTable extends Component
 
     public function selectAllSources()
     {
-        $this->source = $this->sourceNames;
+        $this->source = $this->filteredSourceNames; // Use filtered sources instead of all sources
         $this->render();
     }
 
     public function deselectAllSources()
     {
         $this->source = [];
+        $this->render();
+    }
+    
+    public function selectAllSourceTypes()
+    {
+        $this->sourceType = $this->sourceTypeNames;
+        $this->render();
+    }
+
+    public function deselectAllSourceTypes()
+    {
+        $this->sourceType = [];
         $this->render();
     }
 }

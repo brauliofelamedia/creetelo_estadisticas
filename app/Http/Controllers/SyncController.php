@@ -46,13 +46,13 @@ class SyncController extends Controller
         $data = collect($transactions->getData());
 
         foreach($data['data'] as $item){
-            if ($item->entitySourceType != 'membership') {
+            /*if ($item->entitySourceType != 'membership') {
                 continue;
             }
 
             if (!in_array($item->amount, [39, 390])) {
                 continue;
-            }
+            }*/
 
             if (Transaction::where('_id', $item->_id)->exists()) {
                 continue;
@@ -137,15 +137,15 @@ class SyncController extends Controller
             }
 
             foreach ($data['data'] as $item) {
-                if ($item->entitySourceType != 'membership') {
+                /*if ($item->entitySourceType != 'membership') {
                     continue;
-                }
+                }*/
                 if (Subscription::where('_id', $item->_id)->exists()) {
                     continue;
                 }
-                if (!in_array($item->amount, [39, 390])) {
+                /*if (!in_array($item->amount, [39, 390])) {
                     continue;
-                }
+                }*/
 
                 // Check if contact exists, if not create new one
                 $contact = Contact::where('contact_id', $item->contactId)->first();
