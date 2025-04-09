@@ -25,7 +25,7 @@
           @endif
       </div>
       <div class="col-md-8">
-        <div class="card mb-20">
+        <div class="card mb-20" style="display: none;">
           <div class="card-header">
             <h6 class="card-title mb-0">Tags de importación de contactos</h6>
             <p class="mb-0">A partir de los tags de importación se trae las transacciones y subscripciones activas.</p>
