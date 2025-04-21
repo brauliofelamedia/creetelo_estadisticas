@@ -16,6 +16,67 @@ class FilterController extends Controller
     protected $transactionData = [];
     protected $projectedData = [];
     protected $projectionPeriod = '';
+    protected $availableTags = [];
+
+    public function __construct()
+    {
+        // Load available tags
+        $this->loadAvailableTags();
+    }
+
+    protected function loadAvailableTags()
+    {
+        // Use a fixed list of specific tags
+        $this->availableTags = [
+            'wowfriday_plan mensual',
+            'wowfriday_plan anual',
+            'creetelo_mensual',
+            'créetelo_mensual',
+            'creetelo_anual',
+            'créetelo_anual',
+            'bj25_compro_anual',
+            'bj25_compro_mensual',
+            'creetelo_cancelado'
+        ];
+    }
+
+    protected function filterByTags($subscription, $selectedTags)
+    {
+        // If no tags are selected or contact doesn't exist, don't filter by tags
+        if (empty($selectedTags) || !$subscription->contact) {
+            return true;
+        }
+        
+        // If contact has no tags, it doesn't match
+        if (empty($subscription->contact->tags)) {
+            return false;
+        }
+        
+        $contactTags = $subscription->contact->tags;
+        
+        // Check if tags is a JSON string
+        if (is_string($contactTags) && is_array(json_decode($contactTags, true))) {
+            $contactTagsArray = json_decode($contactTags, true);
+            // Check if any of the selected tags match
+            foreach ($selectedTags as $tag) {
+                if (in_array($tag, $contactTagsArray)) {
+                    return true;
+                }
+            }
+        } 
+        // Check if tags is a comma-separated string
+        else if (is_string($contactTags)) {
+            $contactTagsArray = explode(',', $contactTags);
+            // Check if any of the selected tags match
+            foreach ($selectedTags as $tag) {
+                if (in_array($tag, $contactTagsArray)) {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
+    }
 
     public function filters(Request $request)
     {
@@ -49,6 +110,7 @@ class FilterController extends Controller
 
         $selectedSources = $request->input('sources') ? array_map('urldecode', $request->input('sources', [])) : array('Únete a Créetelo Mensual');
         $selectedSourceTypes = $request->input('source_types') ? array_map('urldecode', $request->input('source_types', [])) : $sourcesTypes;
+        $selectedTags = $request->input('tags') ? array_map('urldecode', $request->input('tags', [])) : $this->availableTags;
         
         // Aplicar filtros combinados en una sola pasada
         $filteredTransactions = $allTransactions->filter(function($transaction) use ($selectedSources, $selectedSourceTypes, $startDate, $endDate) {
@@ -79,6 +141,18 @@ class FilterController extends Controller
             
             return true;
         });
+
+        // Apply tags filter to transactions if they have associated contacts
+        if (!empty($selectedTags)) {
+            $filteredTransactions = $filteredTransactions->filter(function($transaction) use ($selectedTags) {
+                // Skip tag filtering if no contact relation exists
+                if (!isset($transaction->contact) || !$transaction->contact) {
+                    return false;
+                }
+                
+                return $this->filterByTags($transaction, $selectedTags);
+            });
+        }
         
         // Procesamiento de resultados
         $resume = $filteredTransactions->groupBy(function($transaction) {
@@ -144,7 +218,9 @@ class FilterController extends Controller
             'sourcesTypes' => $sourcesTypes,
             'sourcesByType' => $sourcesByType,
             'selectedSources' => $selectedSources,
-            'selectedSourceTypes' => $selectedSourceTypes
+            'selectedSourceTypes' => $selectedSourceTypes,
+            'availableTags' => $this->availableTags,
+            'selectedTags' => $selectedTags
         ]);
     }
 
@@ -160,6 +236,8 @@ class FilterController extends Controller
                 return $date >= $startDate && $date <= $endDate;
             });
         }
+
+        $selectedTags = request()->input('tags') ? array_map('urldecode', request()->input('tags', [])) : $this->availableTags;
 
         // Group transactions by date and calculate totals
         $dailyTotals = [];
@@ -224,7 +302,11 @@ class FilterController extends Controller
             return strcmp($a['createdAt'], $b['createdAt']);
         });
 
-        return view('admin.filters.transactionsForDay', ['transactions' => $dailyTotals]);
+        return view('admin.filters.transactionsForDay', [
+            'transactions' => $dailyTotals,
+            'availableTags' => $this->availableTags,
+            'selectedTags' => $selectedTags
+        ]);
     }
 
     public function comparationForMonth()
@@ -239,6 +321,8 @@ class FilterController extends Controller
                 return $date >= substr($startDate, 0, 7) && $date <= substr($endDate, 0, 7);
             });
         }
+
+        $selectedTags = request()->input('tags') ? array_map('urldecode', request()->input('tags', [])) : $this->availableTags;
 
         // Group subscriptions by month and calculate totals
         $monthlyTotals = [];
@@ -263,7 +347,11 @@ class FilterController extends Controller
             return strcmp($a['createdAt'], $b['createdAt']);
         });
 
-        return view('admin.filters.transactionsForMonth', ['subscriptions' => $monthlyTotals]);
+        return view('admin.filters.transactionsForMonth', [
+            'subscriptions' => $monthlyTotals,
+            'availableTags' => $this->availableTags,
+            'selectedTags' => $selectedTags
+        ]);
     }
 
     public function projection(Request $request)
@@ -298,6 +386,7 @@ class FilterController extends Controller
         
         $selectedSources = $request->input('sources') ? array_map('urldecode', $request->input('sources', [])) : $sources;
         $selectedSourceTypes = $request->input('source_types') ? array_map('urldecode', $request->input('source_types', [])) : $typeSources;
+        $selectedTags = $request->input('tags') ? array_map('urldecode', $request->input('tags', [])) : $this->availableTags;
         
         // Get the month period from request (default: 1 - current month)
         $monthPeriod = (int) $request->input('month_period', 1);
@@ -310,11 +399,13 @@ class FilterController extends Controller
             ? (bool)$request->input('current_month_charges') 
             : true;
         
-        // Filter subscriptions by source and type
-        $filteredSubscriptions = $subscriptions->filter(function($subscription) use ($selectedSources, $selectedSourceTypes) {
+        // Filter subscriptions by source, type and tags
+        $filteredSubscriptions = $subscriptions->filter(function($subscription) use ($selectedSources, $selectedSourceTypes, $selectedTags) {
             $sourceMatch = in_array($subscription->entity_resource_name, $selectedSources);
             $typeMatch = in_array($subscription->source_type, $selectedSourceTypes);
-            return $sourceMatch && $typeMatch;
+            $tagMatch = $this->filterByTags($subscription, $selectedTags);
+            
+            return $sourceMatch && $typeMatch && $tagMatch;
         });
         
         // Get actual subscriptions or add simulated ones if requested
@@ -397,164 +488,9 @@ class FilterController extends Controller
             'sourcesByType' => $sourcesByType,
             'useSimulatedData' => $useSimulatedData,
             'currentMonthCharges' => $currentMonthCharges,
-            'activeOnly' => true // Always true since we only include active subscriptions
-        ]);
-    }
-
-    /**
-     * Generate simulated future subscriptions based on past data patterns
-     * 
-     * @param \Illuminate\Support\Collection $subscriptions
-     * @param int $monthPeriod
-     * @return \Illuminate\Support\Collection
-     */
-    private function getSimulatedFutureSubscriptions($subscriptions, $monthPeriod)
-    {
-        $now = Carbon::now();
-        $endOfPeriod = $now->copy()->addMonths($monthPeriod)->endOfMonth();
-        $simulatedSubscriptions = collect([]);
-        
-        // Get real subscriptions ending in the current period
-        $realSubscriptions = $subscriptions->filter(function($subscription) use ($now, $endOfPeriod) {
-            if (empty($subscription->end_date)) {
-                return false;
-            }
-            
-            $endDate = Carbon::parse($subscription->end_date);
-            return $endDate->between($now, $endOfPeriod);
-        });
-        
-        // Mark these as real, not simulated
-        foreach ($realSubscriptions as $subscription) {
-            $subscription->is_simulated = false;
-            $simulatedSubscriptions->push($subscription);
-        }
-        
-        // Group subscriptions by source for better projection
-        $subscriptionsBySource = $subscriptions->groupBy('entity_resource_name');
-        
-        foreach ($subscriptionsBySource as $sourceName => $sourceSubscriptions) {
-            // Get count of real subscriptions ending this month for this source
-            $currentMonthKey = $now->format('Y-m');
-            $realCountThisMonth = $realSubscriptions
-                ->where('entity_resource_name', $sourceName)
-                ->filter(function($sub) use ($currentMonthKey) {
-                    return Carbon::parse($sub->end_date)->format('Y-m') === $currentMonthKey;
-                })
-                ->count();
-            
-            // Only generate future simulations for month 2 onwards
-            for ($i = 1; $i < $monthPeriod; $i++) {
-                $targetMonth = $now->copy()->addMonths($i);
-                $monthKey = $targetMonth->format('Y-m');
-                
-                // How many active subscriptions to simulate this month
-                // Base this on the current active count for this source
-                $currentActiveCount = $sourceSubscriptions->count();
-                
-                // Apply a slight random growth/decline factor
-                $growthFactor = 1 + (rand(-5, 10) / 100); // -5% to +10% monthly change
-                $simulateCount = max(1, ceil($currentActiveCount * $growthFactor));
-                
-                // Generate simulated subscriptions
-                for ($j = 0; $j < $simulateCount; $j++) {
-                    // Use an existing subscription as template
-                    $template = $sourceSubscriptions->random();
-                    
-                    // Clone the subscription with new dates
-                    $simulatedSub = clone $template;
-                    $simulatedSub->id = 'sim_' . $sourceName . '_' . $i . '_' . $j;
-                    $simulatedSub->status = 'active'; // Ensure the status is always active
-                    
-                    // Set end date to somewhere in the target month
-                    $day = rand(1, $targetMonth->daysInMonth);
-                    $simulatedSub->end_date = $targetMonth->copy()->setDay($day)->format('Y-m-d');
-                    
-                    // Set start date based on typical subscription length
-                    $typicalLength = 30; // Default to monthly
-                    
-                    if (strpos(strtolower($sourceName), 'mensual') !== false) {
-                        $typicalLength = 30;
-                    } elseif (strpos(strtolower($sourceName), 'anual') !== false) {
-                        $typicalLength = 365;
-                    } elseif (strpos(strtolower($sourceName), 'trimestral') !== false) {
-                        $typicalLength = 90;
-                    } elseif (strpos(strtolower($sourceName), 'semestral') !== false) {
-                        $typicalLength = 180;
-                    }
-                    
-                    $simulatedSub->start_date = Carbon::parse($simulatedSub->end_date)->subDays($typicalLength)->format('Y-m-d');
-                    $simulatedSub->is_simulated = true; // Mark as simulated
-                    
-                    // Add to collection
-                    $simulatedSubscriptions->push($simulatedSub);
-                }
-            }
-        }
-        
-        return $simulatedSubscriptions;
-    }
-    
-    /**
-     * Calculate monthly average number of subscriptions
-     * 
-     * @param \Illuminate\Support\Collection $subscriptions
-     * @return array
-     */
-    private function calculateMonthlyAverages($subscriptions)
-    {
-        $monthlySubscriptions = $subscriptions->groupBy(function($subscription) {
-            return Carbon::parse($subscription->end_date)->format('Y-m');
-        });
-        
-        $averages = [];
-        foreach ($monthlySubscriptions as $month => $subs) {
-            $averages[$month] = $subs->count();
-        }
-        
-        // If we have multiple months, calculate moving average
-        if (count($averages) > 1) {
-            $total = array_sum($averages);
-            $count = count($averages);
-            $monthlyAverage = ceil($total / $count);
-            
-            // Use this average for projection with a slight random variance
-            $now = Carbon::now();
-            for ($i = 0; $i < 12; $i++) {
-                $futureMonth = $now->copy()->addMonths($i)->format('Y-m');
-                // Add variance of ±20%
-                $variance = rand(-20, 20) / 100;
-                $averages[$futureMonth] = max(1, ceil($monthlyAverage * (1 + $variance)));
-            }
-        } else {
-            // If only one month, use that count for future months
-            $count = reset($averages) ?: 1;
-            $now = Carbon::now();
-            for ($i = 0; $i < 12; $i++) {
-                $futureMonth = $now->copy()->addMonths($i)->format('Y-m');
-                // Add variance of ±20%
-                $variance = rand(-20, 20) / 100;
-                $averages[$futureMonth] = max(1, ceil($count * (1 + $variance)));
-            }
-        }
-        
-        return $averages;
-    }
-
-    public function calculateProjection(Request $request)
-    {
-        $allTransactions = collect(config('app.transactions.data'));
-        $selectedSources = array_map('urldecode', $request->input('sources', []));
-
-        $this->projectionPeriod = $request->period ?? 3;
-        //$this->calculateTransactions();
-        
-        return view('admin.filters.projection', [
-            'historicalData' => $this->transactionData,
-            'projectedData' => $this->projectedData,
-            'projectionPeriod' => $this->projectionPeriod,
-            'selectedSources' => $selectedSources,
-            'sources' => $allTransactions->pluck('entity_resource_name')->unique()->values()->toArray()
+            'activeOnly' => true,
+            'availableTags' => $this->availableTags,
+            'selectedTags' => $selectedTags
         ]);
     }
 
@@ -565,6 +501,7 @@ class FilterController extends Controller
         $typeSources = $subscriptionsAll->pluck('source_type')->unique()->values()->toArray();
         $selectedSources = $request->input('sources') ? array_map('urldecode', $request->input('sources', [])) : array('M. Créetelo Mensual Activas');
         $selectedSourceTypes = $request->input('source_types') ? array_map('urldecode', $request->input('source_types', [])) : $typeSources;
+        $selectedTags = $request->input('tags') ? array_map('urldecode', $request->input('tags', [])) : $this->availableTags;
         $startDate = $request->get('start_date');
         $endDate = $request->get('end_date');
 
@@ -586,6 +523,13 @@ class FilterController extends Controller
         if (!empty($selectedSourceTypes)) {
             $subscriptions = $subscriptions->filter(function($subscription) use ($selectedSourceTypes) {
                 return in_array($subscription->source_type, $selectedSourceTypes);
+            });
+        }
+
+        // Apply tag filtering
+        if (!empty($selectedTags)) {
+            $subscriptions = $subscriptions->filter(function($subscription) use ($selectedTags) {
+                return $this->filterByTags($subscription, $selectedTags);
             });
         }
 
@@ -676,8 +620,18 @@ class FilterController extends Controller
             'typeSources' => $typeSources,
             'startDate' => $startDate,
             'endDate' => $endDate,
-            'totalStats' => $totalStats
+            'totalStats' => $totalStats,
+            'availableTags' => $this->availableTags,
+            'selectedTags' => $selectedTags
         ]);
+    }
+
+    /**
+     * Get available tags for filtering
+     */
+    public function getAvailableTags()
+    {
+        return response()->json(['tags' => $this->availableTags]);
     }
 
     private function updateContacts()

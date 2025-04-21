@@ -14,33 +14,64 @@ use App\Models\Contact;
 class AdminController extends Controller
 {
 
-    public function index()
+    public function index(Request $request)
     {
+        // Get filter dates from request
+        $startDate = $request->has('monthYearStart') 
+            ? Carbon::createFromFormat('Y-m', $request->monthYearStart)->startOfMonth() 
+            : Carbon::now()->startOfMonth();
+            
+        $endDate = $request->has('monthYearEnd') 
+            ? Carbon::createFromFormat('Y-m', $request->monthYearEnd)->endOfMonth() 
+            : Carbon::now()->endOfMonth();
+        
         $contacts = Contact::paginate(30);
         $transactions = Transaction::all();
         
-        //Contactos activos
-        $currentContacts = Contact::count();
-        $currentUsers = User::count();
-
-        //Transacciones
+        // Get transactions filtered by date range and success status
         $transactionsSucceded = collect($transactions)->filter(function($item) {
             return $item->status === 'succeeded' && $item->livemode === '1';
         })->values()->all();
+        
+        // Filter contacts by date range if filter is applied
+        $currentContacts = $request->has('monthYearStart') || $request->has('monthYearEnd')
+            ? Contact::whereBetween('date_added', [$startDate, $endDate])->count()
+            : Contact::count();
+            
+        $currentUsers = User::count();
 
-        $totalCurrentMonth = collect($transactionsSucceded)
-            ->filter(function ($item) {
-            return Carbon::parse($item->create_time)->year === Carbon::now()->year &&
-                   Carbon::parse($item->create_time)->month === Carbon::now()->month;
-            })
-            ->sum('amount');
+        // Filter transactions by date range for current period
+        $filteredTransactions = collect($transactionsSucceded)
+            ->filter(function ($item) use ($startDate, $endDate) {
+                $itemDate = Carbon::parse($item->create_time);
+                return $itemDate->between($startDate, $endDate);
+            });
+            
+        $totalCurrentPeriod = $filteredTransactions->sum('amount');
 
-            $bestMonth = collect($transactionsSucceded)
-            ->filter(function ($item) {
-                return Carbon::parse($item->create_time)->year === Carbon::now()->year;
+        // Calculate cancellation rate
+        $allFilteredTransactions = collect($transactions)
+            ->filter(function ($item) use ($startDate, $endDate) {
+                $itemDate = Carbon::parse($item->create_time);
+                return $itemDate->between($startDate, $endDate) && $item->livemode === '1';
+            });
+        
+        $cancelledTransactions = $allFilteredTransactions->filter(function($item) {
+            return $item->status === 'cancelled' || $item->status === 'failed';
+        });
+        
+        $totalTransactions = $allFilteredTransactions->count();
+        $cancelledCount = $cancelledTransactions->count();
+        $cancellationRate = $totalTransactions > 0 ? ($cancelledCount / $totalTransactions) * 100 : 0;
+
+        // Get best month within filter period
+        $bestMonth = collect($transactionsSucceded)
+            ->filter(function ($item) use ($startDate, $endDate) {
+                $itemDate = Carbon::parse($item->create_time);
+                return $itemDate->between($startDate, $endDate);
             })
             ->groupBy(function ($item) {
-            return Carbon::parse($item->create_time)->month;
+                return Carbon::parse($item->create_time)->month;
             })
             ->map(function ($items, $month) {
                 return [
@@ -49,36 +80,43 @@ class AdminController extends Controller
                 ];
             })
             ->sortBy('amount')
-            ->last();
-        
-            //Ingresos semanal
-        $weeklyAmounts = collect($transactionsSucceded)
-            ->filter(function ($item) {
-            $date = Carbon::parse($item->create_time)->timezone('America/Mexico_City');
-                return $date->isCurrentWeek();
-            })
-            ->groupBy(function ($item) {
-                return Carbon::parse($item->create_time)->timezone('America/Mexico_City')->dayOfWeek;
-            })
-            ->map(function ($items) {
-                return $items->sum('amount');
-            })
-            ->pipe(function ($collection) {
-                return collect(range(0, 6))->map(function ($day) use ($collection) {
-                    return $collection->get($day, 0);
-                });
-            });
+            ->last() ?: ['month' => '', 'amount' => 0];
 
-        $currentWeekAmount = $weeklyAmounts->sum();
-        
-        //Ingresos totales año actual
+        // Keep original monthly calculations for comparison charts
+        $totalCurrentMonth = collect($transactionsSucceded)
+            ->filter(function ($item) {
+                return Carbon::parse($item->create_time)->year === Carbon::now()->year &&
+                    Carbon::parse($item->create_time)->month === Carbon::now()->month;
+            })
+            ->sum('amount');
+
+        // Original year calculations
         $totalCurrentYear = collect($transactionsSucceded)
             ->filter(function ($item) {
                 return Carbon::parse($item->create_time)->year === Carbon::now()->year;
             })
             ->sum('amount');
+            
+        $totalLastYear = collect($transactionsSucceded)
+            ->filter(function ($item) {
+                return Carbon::parse($item->create_time)->year === Carbon::now()->subYear(1)->year;
+            })
+            ->sum('amount');
 
+        // Get payment methods from filtered transactions
+        $stripe = $filteredTransactions->filter(function ($item) {
+            return in_array($item->payment_provider, ['stripe']);
+        });
+        $stripeCount = $stripe->count();
+        $stripeTotal = $stripe->sum('amount');
 
+        $paypal = $filteredTransactions->filter(function ($item) {
+            return in_array($item->payment_provider, ['paypal']);
+        });
+        $paypalCount = $paypal->count();
+        $paypalTotal = $paypal->sum('amount');
+        
+        // Continue with existing chart data
         $monthlyAmounts = collect($transactionsSucceded)
             ->filter(function ($item) {
                 return Carbon::parse($item->create_time)->year === Carbon::now()->year;
@@ -112,22 +150,6 @@ class AdminController extends Controller
                 });
             })
             ->values();
-
-        //Ingresos año pasado
-        $totalLastYear = collect($transactionsSucceded)
-            ->filter(function ($item) {
-                return Carbon::parse($item->create_time)->year === Carbon::now()->subYear(1)->year;
-            })
-            ->sum('amount');
-
-        //Pagos por Stripe y Paypal
-        $stripe = collect($transactionsSucceded)->filter(function ($item) {
-            return in_array($item->payment_provider, ['stripe']);
-        })->count();
-
-        $paypal = collect($transactionsSucceded)->filter(function ($item) {
-            return in_array($item->payment_provider, ['paypal']);
-        })->count();
     
         $now = Carbon::now();
         $thirtyDaysAgo = Carbon::now()->subDays(30);
@@ -151,8 +173,44 @@ class AdminController extends Controller
                     return $collection->get($day, 0);
                 });
             });
+            
+        // Calculate weekly amounts for the current year
+        $weeklyAmounts = collect($transactionsSucceded)
+            ->filter(function ($item) {
+                return Carbon::parse($item->create_time)->year === Carbon::now()->year;
+            })
+            ->groupBy(function ($item) {
+                return Carbon::parse($item->create_time)->week;
+            })
+            ->map(function ($items) {
+                return $items->sum('amount');
+            })
+            ->pipe(function ($collection) {
+                return collect(range(1, 52))->map(function ($week) use ($collection) {
+                    return $collection->get($week, 0);
+                });
+            });
 
-        return view('admin.index', compact('currentContacts','currentUsers','userDifference', 'latestUsers','totalCurrentYear','bestMonth','totalLastYear','totalCurrentMonth','monthlyAmounts','lastYearMonthlyAmounts','paypal','stripe','weeklyAmounts','currentWeekAmount','dailyAmounts'));
+        // Calculate current week amount
+        $currentWeekAmount = collect($transactionsSucceded)
+            ->filter(function ($item) {
+                return Carbon::parse($item->create_time)->week === Carbon::now()->week
+                    && Carbon::parse($item->create_time)->year === Carbon::now()->year;
+            })
+            ->sum('amount');
+            
+        // Create variables for filtered data display
+        $filteredPeriod = $this->monthSpanish($startDate->month) . ' ' . $startDate->year . ' - ' . 
+                 $this->monthSpanish($endDate->month) . ' ' . $endDate->year;
+
+        return view('admin.index', compact(
+            'stripeCount', 'paypalCount', 'paypalTotal', 'stripeTotal',
+            'currentContacts', 'currentUsers', 'userDifference', 'latestUsers',
+            'totalCurrentYear', 'bestMonth', 'totalLastYear', 'totalCurrentMonth',
+            'monthlyAmounts', 'lastYearMonthlyAmounts', 'paypal', 'stripe',
+            'weeklyAmounts', 'currentWeekAmount', 'dailyAmounts', 'filteredPeriod',
+            'totalCurrentPeriod', 'cancellationRate', 'cancelledCount', 'totalTransactions'
+        ));
     }
 
     public function config()

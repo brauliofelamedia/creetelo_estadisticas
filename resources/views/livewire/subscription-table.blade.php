@@ -32,6 +32,27 @@
                 <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
             </div>
             <div class="offcanvas-body">
+                <!-- Provider Type Filters -->
+                <div class="mb-4">
+                    <h6 class="mb-3">Proveedor de pago</h6>
+                    <div class="d-flex flex-column w-100">
+                        <div class="form-check mb-2" style="font-size: 0.9rem;">
+                            <input wire:model.live="provider_type" class="form-check-input form-check-input-sm" type="checkbox" value="stripe" id="provider-type-stripe">
+                            <label class="form-check-label" for="provider-type-stripe">Stripe</label>
+                        </div>
+                        <div class="form-check mb-2" style="font-size: 0.9rem;">
+                            <input wire:model.live="provider_type" class="form-check-input form-check-input-sm" type="checkbox" value="paypal" id="provider-type-paypal">
+                            <label class="form-check-label" for="provider-type-paypal">PayPal</label>
+                        </div>
+                        <div class="d-flex gap-2 mt-2">
+                            <button type="button" class="btn btn-sm btn-outline-primary" wire:click="selectAllProviderTypes">Seleccionar todo</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="deselectAllProviderTypes">Deseleccionar todo</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr class="my-3">
+                
                 <!-- Source Type Filters -->
                 <div class="mb-4">
                     <h6 class="mb-3">Tipo de fuente</h6>
@@ -51,9 +72,32 @@
                 
                 <hr class="my-3">
                 
+                <!-- Tags Filters -->
+                <div class="mb-4">
+                    <h6 class="mb-3">Etiquetas</h6>
+                    <div class="d-flex flex-column w-100">
+                        @forelse($availableTags as $tag)
+                            <div class="form-check mb-2" style="font-size: 0.9rem;">
+                                <input wire:model.live="tags" class="form-check-input form-check-input-sm" type="checkbox" 
+                                       value="{{ $tag }}" id="tag-{{ $loop->index }}"
+                                       checked>
+                                <label class="form-check-label" for="tag-{{ $loop->index }}">{{ $tag }}</label>
+                            </div>
+                        @empty
+                            <p class="text-muted">No hay etiquetas disponibles.</p>
+                        @endforelse
+                        <div class="d-flex gap-2 mt-2">
+                            <button type="button" class="btn btn-sm btn-outline-primary" wire:click="selectAllTags">Seleccionar todo</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="deselectAllTags">Deseleccionar todo</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr class="my-3">
+                
                 <!-- Membership Filters -->
                 <div>
-                    <h6 class="mb-3">Membresías</h6>
+                    <h6 class="mb-3">Tipo de fuente</h6>
                     <div class="d-flex flex-column w-100">
                         @if(empty($filteredSourceNames))
                             <p class="text-muted">Seleccione al menos un tipo de fuente para ver las membresías disponibles.</p>
@@ -91,11 +135,11 @@
                 <tr>
                     <th class="d-none d-md-table-cell">#</th>
                     <th>Nombre</th>
-                    <th class="d-none d-md-table-cell">Correo</th>
+                    <th>Tipo</th>
                     <th>Monto</th>
+                    <th class="d-none d-md-table-cell">Tipo</th>
                     <th>Membresía</th>
                     <th>Estatus</th>
-                    <th class="d-none d-md-table-cell">Fecha de creación</th>
                 </tr>
             </thead>
             <tbody>
@@ -112,7 +156,7 @@
                     <tr>
                         <td class="d-none d-md-table-cell">{{ $subscription->id }}</td>
                         <td>{{ ucfirst($subscription->contact->fullname) }}</td>
-                        <td class="d-none d-md-table-cell">{{ $subscription->contact->email }}</td>
+                        <td>{{ $subscription->provider_type }}</td>
                         <td>$ {{ number_format($subscription->amount) }} USD</td>
                         <td>{{ str_replace('- Payment', '', $subscription->entity_resource_name) }}</td>
                         <td>

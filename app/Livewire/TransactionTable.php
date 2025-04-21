@@ -21,16 +21,25 @@ class TransactionTable extends Component
     public $source = [];
     public $startDate = '';
     public $endDate = '';
+    public $provider_type = [];
     public $sourceNames = [];
     public $sourceTypes = [];
     public $sourceTypeNames = [];
     public $sourceType = []; 
-    public $filteredSourceNames = []; // New property to store filtered sourceNames
+    public $filteredSourceNames = [];
+    public $mainSources = []; // New property for main sources (start with M)
+    public $secondarySources = []; // New property for secondary sources
+    public $filteredMainSources = []; // New property for filtered main sources
+    public $filteredSecondarySources = []; // New property for filtered secondary sources
+    public $availableTags = [];
+    public $selectedTags = [];
 
     protected $queryString = [
         'search' => ['except' => ''],
         'startDate' => ['except' => ''],
-        'endDate' => ['except' => '']
+        'endDate' => ['except' => ''],
+        'provider_type' => ['except' => []],
+        'selectedTags' => ['except' => []]
     ];
 
     public function mount()
@@ -40,20 +49,54 @@ class TransactionTable extends Component
             ->whereNotNull('entity_resource_name')
             ->pluck('entity_resource_name')
             ->toArray();
+
+        $this->provider_type = ['stripe', 'paypal'];
             
         $this->sourceTypeNames = Transaction::select('entity_source_type')
             ->distinct()
             ->whereNotNull('entity_source_type')
             ->pluck('entity_source_type')
             ->toArray();
-            
+        
+        // Divide sources into main and secondary
+        $this->mainSources = array_filter($this->sourceNames, function($source) {
+            return str_starts_with($source, 'M');
+        });
+        
+        $this->secondarySources = array_filter($this->sourceNames, function($source) {
+            return !str_starts_with($source, 'M');
+        });
+        
         $this->source = $this->sourceNames;
         $this->sourceType = $this->sourceTypeNames;
         $this->filteredSourceNames = $this->sourceNames; // Initialize with all source names
+        $this->filteredMainSources = $this->mainSources; // Initialize with all main sources
+        $this->filteredSecondarySources = $this->secondarySources; // Initialize with all secondary sources
         $this->status = ['succeeded','refunded','failed'];
         $this->startDate = Carbon::now()->startOfMonth()->format('Y-m-d');
         $this->endDate = Carbon::now()->endOfMonth()->format('Y-m-d');
+        
+        // Initialize available tags
+        $this->loadAvailableTags();
+        $this->selectedTags = $this->availableTags; // Default to all tags selected
+        
         $this->calculateTotalPages();
+    }
+
+    protected function loadAvailableTags()
+    {
+        // Use a fixed list of specific tags instead of retrieving from database
+        $this->availableTags = [
+            'wowfriday_plan mensual',
+            'wowfriday_plan anual',
+            'creetelo_mensual',
+            'créetelo_mensual',
+            'creetelo_anual',
+            'créetelo_anual',
+            'bj25_compro_anual',
+            'bj25_compro_mensual',
+            'creetelo_cancelado'
+        ];
     }
 
     public function nextPage()
@@ -78,7 +121,7 @@ class TransactionTable extends Component
 
     public function updated($propertyName)
     {
-        if (in_array($propertyName, ['status', 'source'])) {
+        if (in_array($propertyName, ['status', 'source', 'provider_type', 'selectedTags'])) {
             $this->dispatch('select2:updated');
         }
         
@@ -102,6 +145,13 @@ class TransactionTable extends Component
             });
         }
 
+        if (!empty($this->provider_type)) {
+            $query->whereIn('payment_provider', $this->provider_type);
+        } else {
+            // Si no hay provider types seleccionados, no mostrar resultados
+            $query->where('id', 0);
+        }
+
         if (!empty($this->status)) {
             $query->whereIn('status', $this->status);
         }
@@ -115,6 +165,18 @@ class TransactionTable extends Component
         if (!empty($this->sourceType)) {
             $query->whereIn('entity_source_type', $this->sourceType);
         }
+        
+        // Apply tag filtering to contacts associated with transactions
+        if (!empty($this->selectedTags)) {
+            $query->whereHas('contact', function($q) {
+                $q->where(function ($subQ) {
+                    foreach ($this->selectedTags as $tag) {
+                        // Use JSON_CONTAINS for MySQL or PostgreSQL
+                        $subQ->orWhereRaw('JSON_CONTAINS(tags, ?)', ['"' . $tag . '"']);
+                    }
+                });
+            });
+        }
 
         if ($this->startDate && $this->endDate) {
             $query->whereBetween('create_time', [
@@ -122,6 +184,9 @@ class TransactionTable extends Component
                 Carbon::parse($this->endDate)->endOfDay()
             ]);
         }
+
+        // Add eager loading of the contact relationship
+        $query->with('contact');
 
         return $query;
     }
@@ -139,11 +204,13 @@ class TransactionTable extends Component
         $this->totalPages = ceil($this->getFilteredTransactions()->count() / $this->perPage);
     }
 
-    // New method to update filteredSourceNames based on selected sourceTypes
+    // Update the updateFilteredSourceNames method to also update main and secondary sources
     public function updateFilteredSourceNames()
     {
         if (empty($this->sourceType)) {
             $this->filteredSourceNames = []; // If no sourceType selected, show no sources
+            $this->filteredMainSources = [];
+            $this->filteredSecondarySources = [];
             return;
         }
         
@@ -154,6 +221,15 @@ class TransactionTable extends Component
             ->whereIn('entity_source_type', $this->sourceType)
             ->pluck('entity_resource_name')
             ->toArray();
+        
+        // Divide filtered sources into main and secondary
+        $this->filteredMainSources = array_filter($this->filteredSourceNames, function($source) {
+            return str_starts_with($source, 'M');
+        });
+        
+        $this->filteredSecondarySources = array_filter($this->filteredSourceNames, function($source) {
+            return !str_starts_with($source, 'M');
+        });
     }
 
     public function render()
@@ -177,8 +253,11 @@ class TransactionTable extends Component
             'totalAmount' => $totalAmount,
             'sourceNames' => $this->sourceNames,
             'filteredSourceNames' => $this->filteredSourceNames,
+            'filteredMainSources' => $this->filteredMainSources,
+            'filteredSecondarySources' => $this->filteredSecondarySources,
             'sourceTypeNames' => $this->sourceTypeNames,
-            'noResultsMessage' => $this->noResultsMessage
+            'noResultsMessage' => $this->noResultsMessage,
+            'availableTags' => $this->availableTags
         ]);
     }
 
@@ -205,9 +284,59 @@ class TransactionTable extends Component
         $this->render();
     }
 
+    public function selectAllProviderTypes()
+    {
+        $this->provider_type = ['stripe', 'paypal'];
+        $this->resetPage();
+    }
+
     public function deselectAllSourceTypes()
     {
         $this->sourceType = [];
+        $this->render();
+    }
+
+    public function selectAllTags()
+    {
+        $this->selectedTags = $this->availableTags;
+        $this->render();
+    }
+
+    public function deselectAllTags()
+    {
+        $this->selectedTags = [];
+        $this->render();
+    }
+
+    public function deselectAllProviderTypes()
+    {
+        $this->provider_type = [];
+        $this->resetPage();
+    }
+
+    // Add methods to select/deselect main sources
+    public function selectAllMainSources()
+    {
+        $this->source = array_unique(array_merge($this->source, $this->filteredMainSources));
+        $this->render();
+    }
+
+    public function deselectAllMainSources()
+    {
+        $this->source = array_values(array_diff($this->source, $this->filteredMainSources));
+        $this->render();
+    }
+
+    // Add methods to select/deselect secondary sources
+    public function selectAllSecondarySources()
+    {
+        $this->source = array_unique(array_merge($this->source, $this->filteredSecondarySources));
+        $this->render();
+    }
+
+    public function deselectAllSecondarySources()
+    {
+        $this->source = array_values(array_diff($this->source, $this->filteredSecondarySources));
         $this->render();
     }
 }

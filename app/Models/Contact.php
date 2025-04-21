@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Nnjeim\World\Models\Country;
 
 class Contact extends Model
 {
@@ -47,4 +48,11 @@ class Contact extends Model
             ? ucwords($this->first_name . ' ' . $this->last_name)
             : '-';
     }
+
+    public function getCountryNameAttribute()
+    {
+        $country = Country::where('iso2', $this->country)->first();
+        return $country ? $country->name : null;
+    }
+
 }

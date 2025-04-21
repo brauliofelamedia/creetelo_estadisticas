@@ -28,6 +28,48 @@
             <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
             </div>
             <div class="offcanvas-body">
+                <!-- Provider Type Filters -->
+                <div class="mb-4">
+                    <h6 class="mb-3">Proveedor de pago</h6>
+                    <div class="d-flex flex-column w-100">
+                        <div class="form-check mb-2" style="font-size: 0.9rem;">
+                            <input wire:model.live="provider_type" class="form-check-input form-check-input-sm" type="checkbox" value="stripe" id="provider-type-stripe">
+                            <label class="form-check-label" for="provider-type-stripe">Stripe</label>
+                        </div>
+                        <div class="form-check mb-2" style="font-size: 0.9rem;">
+                            <input wire:model.live="provider_type" class="form-check-input form-check-input-sm" type="checkbox" value="paypal" id="provider-type-paypal">
+                            <label class="form-check-label" for="provider-type-paypal">PayPal</label>
+                        </div>
+                        <div class="d-flex gap-2 mt-2">
+                            <button type="button" class="btn btn-sm btn-outline-primary" wire:click="selectAllProviderTypes">Seleccionar todo</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="deselectAllProviderTypes">Deseleccionar todo</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tags Section -->
+                <div class="mb-4">
+                    <h6 class="mb-3 border-bottom pb-2">Etiquetas</h6>
+                    <div class="d-flex flex-column w-100">
+                        @if(empty($availableTags))
+                            <div class="alert alert-info">
+                                No hay etiquetas disponibles
+                            </div>
+                        @else
+                            @foreach($availableTags as $tag)
+                                <div class="form-check mb-2" style="font-size: 0.9rem;">
+                                    <input wire:model.live="selectedTags" class="form-check-input form-check-input-sm" type="checkbox" value="{{ $tag }}" id="tag-{{ $loop->index }}">
+                                    <label class="form-check-label" for="tag-{{ $loop->index }}">{{ $tag }}</label>
+                                </div>
+                            @endforeach
+                            <div class="d-flex gap-2 mt-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary" wire:click="selectAllTags">Seleccionar todo</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="deselectAllTags">Deseleccionar todo</button>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+                
                 <!-- Source Types Section -->
                 <div class="mb-4">
                     <h6 class="mb-3 border-bottom pb-2">Tipos de fuente</h6>
@@ -48,24 +90,60 @@
                 <!-- Source Names Section -->
                 <div>
                     <h6 class="mb-3 border-bottom pb-2">Nombres de fuente</h6>
-                    <div class="d-flex flex-column w-100">
-                        @if(empty($filteredSourceNames))
-                            <div class="alert alert-info">
-                                Seleccione al menos un tipo de fuente para ver las opciones disponibles
+                    
+                    @if(empty($filteredSourceNames))
+                        <div class="alert alert-info">
+                            Seleccione al menos un tipo de fuente para ver las opciones disponibles
+                        </div>
+                    @else
+                        <!-- Main Sources (Starting with M) -->
+                        <div class="mb-4">
+                            <h6 class="mb-2 text-primary">Principales</h6>
+                            <div class="d-flex flex-column w-100">
+                                @if(empty($filteredMainSources))
+                                    <div class="small text-muted mb-2">No hay fuentes principales disponibles</div>
+                                @else
+                                    @foreach($filteredMainSources as $sourceName)
+                                        <div class="form-check mb-2" style="font-size: 0.9rem;">
+                                            <input wire:model.live="source" class="form-check-input form-check-input-sm" type="checkbox" value="{{ $sourceName }}" id="source-main-{{ $loop->index }}">
+                                            <label class="form-check-label" for="source-main-{{ $loop->index }}">{{ str_replace('- Payment', '', $sourceName) }}</label>
+                                        </div>
+                                    @endforeach
+                                    <div class="d-flex gap-2 mt-2 mb-3">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" wire:click="selectAllMainSources">Seleccionar principales</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="deselectAllMainSources">Deseleccionar principales</button>
+                                    </div>
+                                @endif
                             </div>
-                        @else
-                            @foreach($filteredSourceNames as $sourceName)
-                                <div class="form-check mb-2" style="font-size: 0.9rem;">
-                                    <input wire:model.live="source" class="form-check-input form-check-input-sm" type="checkbox" value="{{ $sourceName }}" id="source-{{ $loop->index }}">
-                                    <label class="form-check-label" for="source-{{ $loop->index }}">{{ str_replace('- Payment', '', $sourceName) }}</label>
-                                </div>
-                            @endforeach
-                            <div class="d-flex gap-2 mt-2">
-                                <button type="button" class="btn btn-sm btn-outline-primary" wire:click="selectAllSources" @if(empty($filteredSourceNames)) disabled @endif>Seleccionar todo</button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="deselectAllSources" @if(empty($filteredSourceNames)) disabled @endif>Deseleccionar todo</button>
+                        </div>
+
+                        <!-- Secondary Sources (Not starting with M) -->
+                        <div>
+                            <h6 class="mb-2 text-secondary">Secundarias</h6>
+                            <div class="d-flex flex-column w-100">
+                                @if(empty($filteredSecondarySources))
+                                    <div class="small text-muted mb-2">No hay fuentes secundarias disponibles</div>
+                                @else
+                                    @foreach($filteredSecondarySources as $sourceName)
+                                        <div class="form-check mb-2" style="font-size: 0.9rem;">
+                                            <input wire:model.live="source" class="form-check-input form-check-input-sm" type="checkbox" value="{{ $sourceName }}" id="source-secondary-{{ $loop->index }}">
+                                            <label class="form-check-label" for="source-secondary-{{ $loop->index }}">{{ str_replace('- Payment', '', $sourceName) }}</label>
+                                        </div>
+                                    @endforeach
+                                    <div class="d-flex gap-2 mt-2">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" wire:click="selectAllSecondarySources">Seleccionar secundarias</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="deselectAllSecondarySources">Deseleccionar secundarias</button>
+                                    </div>
+                                @endif
                             </div>
-                        @endif
-                    </div>
+                        </div>
+
+                        <!-- All Sources Buttons -->
+                        <div class="d-flex gap-2 mt-3 pt-2 border-top">
+                            <button type="button" class="btn btn-sm btn-outline-primary" wire:click="selectAllSources" @if(empty($filteredSourceNames)) disabled @endif>Seleccionar todas</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" wire:click="deselectAllSources" @if(empty($filteredSourceNames)) disabled @endif>Deseleccionar todas</button>
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -87,7 +165,7 @@
                 <tr>
                     <th class="d-none d-md-table-cell">#</th>
                     <th>Nombre</th>
-                    <th class="d-none d-md-table-cell">SourceType</th>
+                    <th class="d-none d-md-table-cell">Tipo de fuente</th>
                     <th>Monto</th>
                     <th>Nombre</th>
                     <th>Estatus</th>

@@ -3,7 +3,7 @@
         <div class="col-auto">
             <select wire:model.live="country" id="country" class="form-control form-select">
                 <option value="*">-- Seleccionar el país --</option>
-                @foreach($countries as $country)
+                @foreach($countries as $key => $country)
                     <option value="{{$country}}">{{$country}}</option>
                 @endforeach
             </select>
@@ -30,7 +30,7 @@
                     <th>Nombre</th>
                     <th class="d-none d-md-table-cell">Correo</th>
                     <th>País</th>
-                    <th>Registro</th>
+                    <th>Tiempo de vida</th>
                     <th class="d-none d-md-table-cell">Última Actualización</th>
                 </tr>
             </thead>

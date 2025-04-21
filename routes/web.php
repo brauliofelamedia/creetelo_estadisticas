@@ -311,5 +311,8 @@ Route::middleware('auth')->prefix('dashboard')->group(function () {
     });
 });
 
+// Add the missing route for filtering sources by type
+Route::get('/admin/filters/get-sources-by-type', [App\Http\Controllers\FilterController::class, 'getSourcesByType'])->name('get.sources.by.type');
+
 
 

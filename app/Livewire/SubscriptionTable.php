@@ -21,11 +21,15 @@ class SubscriptionTable extends Component
     public $status = [];
     public $source = [];
     public $source_type = [];
+    public $provider_type = [];
     public $startDate = '';
     public $endDate = '';
     public $sourceNames = [];
     public $sourceTypes = [];
     public $filteredSourceNames = [];
+    public $availableTags = [];
+    public $selectedTags = []; // Changed from $tags to $selectedTags for consistency
+    public $debug = false; // Add debug flag to help troubleshoot the query
 
     protected $queryString = [
         'country' => ['except' => '*'],
@@ -33,7 +37,9 @@ class SubscriptionTable extends Component
         'search' => ['except' => ''],
         'startDate' => ['except' => ''],
         'endDate' => ['except' => ''],
-        'source_type' => ['except' => []]
+        'source_type' => ['except' => []],
+        'provider_type' => ['except' => []],
+        'selectedTags' => ['except' => []] // Updated from tags to selectedTags
     ];
 
     public function mount()
@@ -53,13 +59,34 @@ class SubscriptionTable extends Component
         $this->filteredSourceNames = $this->sourceNames;
         $this->source = $this->sourceNames;
         $this->source_type = $this->sourceTypes;
+        $this->provider_type = ['stripe', 'paypal'];
         $this->status = ['active', 'canceled', 'incomplete_expired', 'past_due'];
         $this->startDate = Carbon::now()->startOfMonth()->format('Y-m-d');
         $this->endDate = Carbon::now()->endOfMonth()->format('Y-m-d');
+        
+        // Initialize available tags
+        $this->loadAvailableTags();
+        $this->selectedTags = $this->availableTags; // Default to all tags selected
+        
         $this->calculateTotalPages();
     }
 
-    // New method to filter source names based on selected source types
+    protected function loadAvailableTags()
+    {
+        // Use a fixed list of specific tags instead of retrieving from database
+        $this->availableTags = [
+            'wowfriday_plan mensual',
+            'wowfriday_plan anual',
+            'creetelo_mensual',
+            'créetelo_mensual',
+            'creetelo_anual',
+            'créetelo_anual',
+            'bj25_compro_anual',
+            'bj25_compro_mensual',
+            'creetelo_cancelado'
+        ];
+    }
+
     public function getFilteredSourceNames()
     {
         if (empty($this->source_type)) {
@@ -96,7 +123,7 @@ class SubscriptionTable extends Component
 
     public function updated($propertyName)
     {
-        if (in_array($propertyName, ['status', 'source', 'source_type'])) {
+        if (in_array($propertyName, ['status', 'source', 'source_type', 'provider_type', 'selectedTags'])) {
             $this->dispatch('select2:updated');
             
             // Update filtered source names when source_type changes
@@ -115,7 +142,7 @@ class SubscriptionTable extends Component
 
     protected function getFilteredSubscriptions()
     {
-        $query = Subscription::query();
+        $query = Subscription::query()->with('contact');
 
         if ($this->search !== '') {
             $query->whereHas('contact', function($q) {
@@ -139,11 +166,54 @@ class SubscriptionTable extends Component
             $query->whereIn('source_type', $this->source_type);
         }
 
+        if (!empty($this->provider_type)) {
+            $query->whereIn('provider_type', $this->provider_type);
+        } else {
+            // Si no hay provider types seleccionados, no mostrar resultados
+            $query->where('id', 0);
+        }
+
         if ($this->startDate && $this->endDate) {
             $query->whereBetween('create_time', [
                 Carbon::parse($this->startDate)->startOfDay(),
                 Carbon::parse($this->endDate)->endOfDay()
             ]);
+        }
+        
+        // Filter by tags - improved version
+        if (!empty($this->selectedTags)) {
+            $query->whereHas('contact', function($q) {
+                $q->where(function($subQuery) {
+                    foreach ($this->selectedTags as $tag) {
+                        // Handle JSON format
+                        $subQuery->orWhere(function($jsonQuery) use ($tag) {
+                            $jsonQuery->whereRaw('JSON_CONTAINS(tags, ?)', ['"' . $tag . '"'])
+                                     ->orWhere('tags', 'like', '%"' . $tag . '"%');
+                        });
+                        
+                        // Handle comma-separated format
+                        $subQuery->orWhere(function($csvQuery) use ($tag) {
+                            $csvQuery->orWhere('tags', '=', $tag)
+                                   ->orWhere('tags', 'like', $tag . ',%')
+                                   ->orWhere('tags', 'like', '%,' . $tag . ',%')
+                                   ->orWhere('tags', 'like', '%,' . $tag);
+                        });
+                    }
+                });
+            });
+        }
+        
+        // Debug SQL query if debug is enabled
+        if ($this->debug) {
+            $sql = $query->toSql();
+            $bindings = $query->getBindings();
+            
+            // Replace ? with actual values
+            foreach ($bindings as $binding) {
+                $value = is_numeric($binding) ? $binding : "'" . $binding . "'";
+                $sql = preg_replace('/\?/', $value, $sql, 1);
+            }
+        
         }
 
         return $query;
@@ -188,7 +258,9 @@ class SubscriptionTable extends Component
                 ->orderBy('source_type')
                 ->pluck('source_type')
                 ->values()
-                ->toArray()
+                ->toArray(),
+            'availableTags' => $this->availableTags,
+            'sql' => $this->debug ? 'log' : [] // Add SQL to view for debugging
         ]);
     }
 
@@ -219,5 +291,40 @@ class SubscriptionTable extends Component
     {
         $this->source_type = [];
         $this->resetPage();
+    }
+
+    public function selectAllProviderTypes()
+    {
+        $this->provider_type = ['stripe', 'paypal'];
+        $this->resetPage();
+    }
+
+    public function deselectAllProviderTypes()
+    {
+        $this->provider_type = [];
+        $this->resetPage();
+    }
+
+    public function selectAllTags()
+    {
+        $this->selectedTags = $this->availableTags;
+        $this->render();
+    }
+
+    public function deselectAllTags()
+    {
+        $this->selectedTags = [];
+        $this->render();
+    }
+
+    // Add a method to toggle debug mode
+    public function toggleDebug()
+    {
+        $this->debug = !$this->debug;
+        if ($this->debug) {
+            'log';
+        } else {
+            'log';
+        }
     }
 }

@@ -99,15 +99,21 @@ class ContactTable extends Component
         $this->noResultsMessage = $contacts->isEmpty() 
             ? 'No se encontraron registros con los filtros aplicados.' 
             : '';
+        $countriesUser = Contact::whereNotNull('country')
+            ->pluck('country')
+            ->unique()
+            ->sort(function ($a, $b) {
+                if ($a === 'United States') return -1;
+                if ($b === 'United States') return 1;
+                return $a <=> $b;
+            })->values()->toArray();
+            $countriesWithNames = Country::whereIn('iso2', $countriesUser)
+                ->pluck('name', 'iso2')
+                ->toArray();
 
         return view('livewire.contact-table', [
             'contacts' => $contacts,
-            'countries' => Contact::whereNotNull('country')->pluck('country')->unique()->values()
-                ->sort(function ($a, $b) {
-                    if ($a === 'United States') return -1;
-                    if ($b === 'United States') return 1;
-                    return $a <=> $b;
-                })->values()->toArray(),
+            'countries' => $countriesWithNames,
             'noResultsMessage' => $this->noResultsMessage
         ]);
     }
