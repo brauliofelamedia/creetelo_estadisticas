@@ -37,7 +37,7 @@
                                     <div class="accordion-item">
                                         <h2 class="accordion-header" id="sourceTypesHeader">
                                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sourceTypesCollapse" aria-expanded="false" aria-controls="sourceTypesCollapse">
-                                                <span class="label-bold">Tipos de Fuentes</span>
+                                                <span class="label-bold">Tipos</span>
                                             </button>
                                         </h2>
                                         <div id="sourceTypesCollapse" class="accordion-collapse collapse" aria-labelledby="sourceTypesHeader" data-bs-parent="#filtersAccordion">
@@ -67,7 +67,7 @@
                                     <div class="accordion-item">
                                         <h2 class="accordion-header" id="sourcesHeader">
                                             <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#sourcesCollapse" aria-expanded="true" aria-controls="sourcesCollapse">
-                                                <span class="label-bold">Membresías</span>
+                                                <span class="label-bold">Fuentes</span>
                                             </button>
                                         </h2>
                                         <div id="sourcesCollapse" class="accordion-collapse collapse show" aria-labelledby="sourcesHeader" data-bs-parent="#filtersAccordion">
@@ -80,14 +80,160 @@
                                                             id="source-{{ $key }}" 
                                                             value="{{ urlencode($source) }}"
                                                             {{ in_array($source, $selectedSources) ? 'checked' : '' }}>
-                                                            <label class="form-check-label" for="source-{{ $key }}">
-                                                                {{ str_replace('- Payment', '', $source) }}
-                                                            </label>
+                                                        <label class="form-check-label" for="source-{{ $key }}">
+                                                            {{ str_replace('- Payment', '', $source) }}
+                                                        </label>
                                                     </div>
                                                 @endforeach
                                                 <div class="d-flex gap-2 mt-2">
                                                     <button type="button" class="btn btn-sm btn-outline-primary" style="width:100%;" id="selectAll">Seleccionar</button>
                                                     <button type="button" class="btn btn-sm btn-outline-secondary" style="width:100%;" id="deselectAll">Deseleccionar</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Tags -->
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header" id="tagsHeader">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#tagsCollapse" aria-expanded="false" aria-controls="tagsCollapse">
+                                                <span class="label-bold">Tags</span>
+                                            </button>
+                                        </h2>
+                                        <div id="tagsCollapse" class="accordion-collapse collapse" aria-labelledby="tagsHeader" data-bs-parent="#filtersAccordion">
+                                            <div class="accordion-body">
+                                                <div class="form-check mb-2" style="font-size: 0.9rem;">
+                                                    <input class="form-check-input form-check-input-sm tag-filter" 
+                                                        name="tags[]" 
+                                                        type="checkbox" 
+                                                        id="tag-1" 
+                                                        value="wowfriday_plan_mensual"
+                                                        {{ isset($selectedTags) && in_array('wowfriday_plan_mensual', $selectedTags) ? 'checked' : '' }}>
+                                                    <label class="form-check-label" for="tag-1">
+                                                        wowfriday_plan_mensual
+                                                    </label>
+                                                </div>
+                                                <div class="form-check mb-2" style="font-size: 0.9rem;">
+                                                    <input class="form-check-input form-check-input-sm tag-filter" 
+                                                        name="tags[]" 
+                                                        type="checkbox" 
+                                                        id="tag-2" 
+                                                        value="wowfriday_plan_anual"
+                                                        {{ isset($selectedTags) && in_array('wowfriday_plan_anual', $selectedTags) ? 'checked' : '' }}>
+                                                    <label class="form-check-label" for="tag-2">
+                                                        wowfriday_plan_anual
+                                                    </label>
+                                                </div>
+                                                <div class="form-check mb-2" style="font-size: 0.9rem;">
+                                                    <input class="form-check-input form-check-input-sm tag-filter" 
+                                                        name="tags[]" 
+                                                        type="checkbox" 
+                                                        id="tag-3" 
+                                                        value="creetelo_mensual"
+                                                        {{ isset($selectedTags) && in_array('creetelo_mensual', $selectedTags) ? 'checked' : '' }}>
+                                                    <label class="form-check-label" for="tag-3">
+                                                        creetelo_mensual
+                                                    </label>
+                                                </div>
+                                                <div class="form-check mb-2" style="font-size: 0.9rem;">
+                                                    <input class="form-check-input form-check-input-sm tag-filter" 
+                                                        name="tags[]" 
+                                                        type="checkbox" 
+                                                        id="tag-4" 
+                                                        value="créetelo_mensual"
+                                                        {{ isset($selectedTags) && in_array('créetelo_mensual', $selectedTags) ? 'checked' : '' }}>
+                                                    <label class="form-check-label" for="tag-4">
+                                                        créetelo_mensual
+                                                    </label>
+                                                </div>
+                                                <div class="form-check mb-2" style="font-size: 0.9rem;">
+                                                    <input class="form-check-input form-check-input-sm tag-filter" 
+                                                        name="tags[]" 
+                                                        type="checkbox" 
+                                                        id="tag-5" 
+                                                        value="creetelo_anual"
+                                                        {{ isset($selectedTags) && in_array('creetelo_anual', $selectedTags) ? 'checked' : '' }}>
+                                                    <label class="form-check-label" for="tag-5">
+                                                        creetelo_anual
+                                                    </label>
+                                                </div>
+                                                <div class="form-check mb-2" style="font-size: 0.9rem;">
+                                                    <input class="form-check-input form-check-input-sm tag-filter" 
+                                                        name="tags[]" 
+                                                        type="checkbox" 
+                                                        id="tag-6" 
+                                                        value="créetelo_anual"
+                                                        {{ isset($selectedTags) && in_array('créetelo_anual', $selectedTags) ? 'checked' : '' }}>
+                                                    <label class="form-check-label" for="tag-6">
+                                                        créetelo_anual
+                                                    </label>
+                                                </div>
+                                                <div class="form-check mb-2" style="font-size: 0.9rem;">
+                                                    <input class="form-check-input form-check-input-sm tag-filter" 
+                                                        name="tags[]" 
+                                                        type="checkbox" 
+                                                        id="tag-7" 
+                                                        value="bj25_compro_anual"
+                                                        {{ isset($selectedTags) && in_array('bj25_compro_anual', $selectedTags) ? 'checked' : '' }}>
+                                                    <label class="form-check-label" for="tag-7">
+                                                        bj25_compro_anual
+                                                    </label>
+                                                </div>
+                                                <div class="form-check mb-2" style="font-size: 0.9rem;">
+                                                    <input class="form-check-input form-check-input-sm tag-filter" 
+                                                        name="tags[]" 
+                                                        type="checkbox" 
+                                                        id="tag-8" 
+                                                        value="bj25_compro_mensual"
+                                                        {{ isset($selectedTags) && in_array('bj25_compro_mensual', $selectedTags) ? 'checked' : '' }}>
+                                                    <label class="form-check-label" for="tag-8">
+                                                        bj25_compro_mensual
+                                                    </label>
+                                                </div>
+                                                <div class="form-check mb-2" style="font-size: 0.9rem;">
+                                                    <input class="form-check-input form-check-input-sm tag-filter" 
+                                                        name="tags[]" 
+                                                        type="checkbox" 
+                                                        id="tag-9" 
+                                                        value="creetelo_cancelado"
+                                                        {{ isset($selectedTags) && in_array('creetelo_cancelado', $selectedTags) ? 'checked' : '' }}>
+                                                    <label class="form-check-label" for="tag-9">
+                                                        creetelo_cancelado
+                                                    </label>
+                                                </div>
+                                                <div class="d-flex gap-2 mt-2">
+                                                    <button type="button" class="btn btn-sm btn-outline-primary" style="width:100%;" id="selectAllTags">Seleccionar</button>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" style="width:100%;" id="deselectAllTags">Deseleccionar</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Payment Providers -->
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header" id="paymentProvidersHeader">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#paymentProvidersCollapse" aria-expanded="false" aria-controls="paymentProvidersCollapse">
+                                                <span class="label-bold">Proveedores de Pago</span>
+                                            </button>
+                                        </h2>
+                                        <div id="paymentProvidersCollapse" class="accordion-collapse collapse" aria-labelledby="paymentProvidersHeader" data-bs-parent="#filtersAccordion">
+                                            <div class="accordion-body">
+                                                @foreach($paymentProviders ?? [] as $key => $provider)
+                                                    <div class="form-check mb-2" style="font-size: 0.9rem;">
+                                                        <input class="form-check-input form-check-input-sm provider-filter" 
+                                                            name="payment_providers[]" 
+                                                            type="checkbox"
+                                                            id="provider-{{ $key }}" 
+                                                            value="{{ urlencode($provider) }}"
+                                                            {{ isset($selectedPaymentProviders) && in_array($provider, $selectedPaymentProviders) ? 'checked' : '' }}>
+                                                        <label class="form-check-label" for="provider-{{ $key }}">
+                                                            {{ $provider ?: 'Sin especificar' }}
+                                                        </label>
+                                                    </div>
+                                                @endforeach
+                                                <div class="d-flex gap-2 mt-2">
+                                                    <button type="button" class="btn btn-sm btn-outline-primary" style="width:100%;" id="selectAllProviders">Seleccionar</button>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" style="width:100%;" id="deselectAllProviders">Deseleccionar</button>
                                                 </div>
                                             </div>
                                         </div>
@@ -98,10 +244,10 @@
                         
                         <button type="submit" class="btn btn-primary" style="width:100%;">Filtrar</button>
                     </form>
-                    
                 </div>
             </div>
         </div>
+        
         <div class="col-lg-9">
             <div class="card">
                 <div class="card-header">
@@ -112,7 +258,7 @@
                         <p>No hay resultados para el filtro seleccionado</p>
                     @else
                         @foreach($transactions as $transaction)
-                            <div class="card summary-card mb-4" style="display: none;">
+                            <div class="card summary-card mb-4">
                                 <div class="card-body">
                                     <div class="row">
                                         <div class="col-md-3">
@@ -191,11 +337,9 @@
                                                     $transactionType = 'manual';
                                                 }
                                             @endphp
-                                            
                                             <tr class="source-row">
                                                 <td class="d-flex align-items-center">
                                                     {{$key}}
-                                                    {{$transactionType}}
                                                     @if($transactionType)
                                                         <span class="badge bg-{{ 
                                                             $transactionType == 'membership' ? 'primary' : 
@@ -310,6 +454,7 @@
     </div>
 </div>
 @endsection
+
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
@@ -321,6 +466,7 @@
         $('#deselectAll').click(function() {
             $('input[name="sources[]"]').prop('checked', false);
         });
+        
         // Para tipos de fuentes
         $('#selectAllTypes').click(function() {
             $('input[name="source_types[]"]').prop('checked', true);
@@ -328,6 +474,23 @@
         $('#deselectAllTypes').click(function() {
             $('input[name="source_types[]"]').prop('checked', false);
         });
+        
+        // Para tags
+        $('#selectAllTags').click(function() {
+            $('input[name="tags[]"]').prop('checked', true);
+        });
+        $('#deselectAllTags').click(function() {
+            $('input[name="tags[]"]').prop('checked', false);
+        });
+        
+        // Para proveedores de pago
+        $('#selectAllProviders').click(function() {
+            $('input[name="payment_providers[]"]').prop('checked', true);
+        });
+        $('#deselectAllProviders').click(function() {
+            $('input[name="payment_providers[]"]').prop('checked', false);
+        });
+        
         // Filtrar membresías según los tipos seleccionados
         $('.sourceType-filter').change(function() {
             // Esta funcionalidad requeriría datos adicionales sobre qué membresía pertenece a qué tipo
@@ -374,7 +537,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Aplicar la lógica de filtrado al cargar la página
     updateSourceGroupsVisibility();
-
+    
     // Actualizar al cambiar los tipos de fuente
     sourceTypeCheckboxes.forEach(checkbox => {
         checkbox.addEventListener('change', updateSourceGroupsVisibility);
@@ -382,6 +545,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 @endpush
+
 @push('css')
 <style>
     .table-responsive {
@@ -424,5 +588,4 @@ document.addEventListener('DOMContentLoaded', function() {
         vertical-align: middle;
     }
 </style>
-
 @endpush

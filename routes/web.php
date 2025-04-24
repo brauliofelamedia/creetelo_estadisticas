@@ -285,6 +285,7 @@ Route::middleware('auth')->prefix('dashboard')->group(function () {
     Route::prefix('subscriptions')->group(function () {
         Route::get('/',[SubscriptionController::class,'index'])->name('subscriptions.index');
         Route::get('get',[SubscriptionController::class,'get'])->name('subscriptions.update');
+        Route::get('getById/{id}',[SubscriptionController::class,'getById'])->name('subscriptions.getById');
     });
 
     //Filters

@@ -7,91 +7,204 @@ use Illuminate\Http\Request;
 use App\Services\Transactions;
 use Carbon\Carbon;
 use App\Models\Contact;
+use App\Models\Subscription;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class TransactionController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return view('admin.transactions.index');
-    }
+        // Get filter parameters from request
+        $search = $request->input('search', '');
+        $status = $request->input('status', ['succeeded', 'refunded', 'failed']);
+        $startDate = $request->input('startDate', '2024-01-01');
+        $endDate = $request->input('endDate', Carbon::now()->format('Y-m-d'));
+        $provider_type = $request->input('provider_type', ['paypal','stripe']);
+        $sourceType = $request->input('sourceType', ['membership', 'subscription', 'payment_link','invoice','manual','communities','funnel']);
+        $selectedTags = $request->input('selectedTags', []);
 
-    public function update()
-    {
-        try {
-            $contacts = Contact::all();
-            $transactions = new Transactions();
-            $transactionsCreated = 0;
-            $errors = [];
+        // Get unique source types for filtering - using entity_source_type instead of source_type
+        $sourceTypeNames = Transaction::select('entity_source_type')
+            ->distinct()
+            ->whereNotNull('entity_source_type')
+            ->orderBy('entity_source_type')
+            ->pluck('entity_source_type')
+            ->toArray();
 
-            foreach($contacts as $contact) {
-                try {
-                    $response = $transactions->get(0, $contact->lead_id);
-                    
-                    $data = response()->json([
-                        'data' => $response,
-                    ]);
+        // Get all sources from Transaction model instead of Subscription
+        $allSources = Transaction::select('entity_resource_name')
+            ->whereNotNull('entity_resource_name')
+            ->distinct()
+            ->pluck('entity_resource_name')
+            ->toArray();
 
-                    $dataFinal = json_decode(json_encode($data->getData()), true);
-                    $transactionTotal = $dataFinal['data']['original']['totalCount'];
-                    $transactionsData = $dataFinal['data']['original']['data'];
+        // Define priority sources - refined list
+        $prioritySources = Transaction::select('entity_resource_name')
+            ->where(function($query) {
+                $query->where('entity_resource_name', 'like', 'M.%')
+                      ->orWhere('entity_resource_name', 'like', 'Únete a Créetelo%');
+            })
+            ->distinct()
+            ->pluck('entity_resource_name')
+            ->toArray();
 
-                    foreach($transactionsData as $data) {
-                        $contactExist = Contact::where('lead_id', $data['contactId'])->first();
-                    
-                        if($contactExist) {
-                            if(in_array($data['entitySourceName'], ['Únete a Créetelo Mensual', 'Únete a Créetelo Anual'])) {
-                                $transitionCheck = Transaction::where('charge_id', $data['chargeId'])->first();
+        // Get other sources by excluding priority sources
+        $otherSources = array_diff($allSources, $prioritySources);
+        
+        // Use source from request, or default to prioritySources if not provided
+        $source = $request->input('source', $prioritySources);
 
-                                if(!$transitionCheck) {
-                                    $transaction = new Transaction();
-                                    $transaction->currency = $data['currency'];
-                                    $transaction->amount = $data['amount'];
-                                    $transaction->status = $data['status'];
-                                    $transaction->livemode = $data['liveMode'];
-                                    $transaction->entity_type = $data['entityType'];
-                                    $transaction->entity_source_type = $data['entitySourceType'];
-                                    $transaction->entity_id = $data['entityId'];
-                                    $transaction->subscription_id = $data['subscriptionId'];
-                                    $transaction->charge_id = $data['chargeId'];
-                                    $transaction->summary = 'summary';
-                                    $transaction->entitySourceName = $data['entitySourceName'];
-                                    $transaction->create_time = Carbon::parse($data['createdAt'])->toDateTimeString();
-                                    $transaction->contact_id = $contactExist->id;
-                                    $transaction->save();
-                                    
-                                    $transactionsCreated++;
-                                }
-                            }
-                        }
-                    }
-                } catch (\Exception $e) {
-                    $errors[] = [
-                        'contact_id' => $contact->id,
-                        'lead_id' => $contact->lead_id,
-                        'error' => $e->getMessage()
-                    ];
-                }
-            }
+        // Flag to check if any filter has been applied
+        $filtersApplied = $search !== '' || 
+                        !empty($status) || 
+                        !empty($source) || 
+                        !empty($provider_type) || 
+                        !empty($sourceType) ||
+                        ($startDate && $endDate);
+        
+        // Flag to check if tags filter is specifically applied
+        $tagsFilterApplied = $request->has('selectedTags');
 
-            $response = [
-                'success' => true,
-                'message' => 'Proceso completado',
-                'data' => [
-                    'transactions_created' => $transactionsCreated,
-                    'contacts_processed' => $contacts->count(),
-                    'errors' => $errors
-                ]
-            ];
-
-            return response()->json($response, 200);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error en el proceso',
-                'error' => $e->getMessage()
-            ], 500);
+        // Default provider_type values only when filters are applied
+        if (empty($provider_type) && $filtersApplied) {
+            $provider_type = ['stripe', 'paypal'];
         }
+
+        // Default date range only when filters are applied
+        if (empty($startDate) && empty($endDate) && $filtersApplied) {
+            $startDate = Carbon::now()->startOfMonth()->format('Y-m-d');
+            $endDate = Carbon::now()->endOfMonth()->format('Y-m-d');
+        }
+        
+        // Define available tags
+        $availableTags = [
+            'wowfriday_plan mensual',
+            'wowfriday_plan anual',
+            'creetelo_mensual',
+            'créetelo_mensual',
+            'creetelo_anual',
+            'créetelo_anual',
+            'bj25_compro_anual',
+            'bj25_compro_mensual',
+            'creetelo_cancelado'
+        ];
+        
+        // Get source names - this is redundant with allSources but kept for backward compatibility
+        $sourceNames = $allSources;
+            
+        // Get filtered source names based on source type
+        $filteredSourceNames = [];
+        if (!empty($sourceType)) {
+            $filteredSourceNames = Transaction::select('entity_resource_name')
+                ->distinct()
+                ->whereNotNull('entity_resource_name')
+                ->whereIn('entity_source_type', $sourceType)
+                ->pluck('entity_resource_name')
+                ->toArray();
+        } else {
+            $filteredSourceNames = $sourceNames;
+        }
+        
+        // Separate filtered source names into main and secondary sources
+        $filteredMainSources = array_intersect($filteredSourceNames, $prioritySources);
+        $filteredSecondarySources = array_intersect($filteredSourceNames, $otherSources);
+        
+        // Build the query
+        $query = Transaction::query()->with('contact');
+        
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%')
+                  ->orWhere('email', 'like', '%' . $search . '%');
+            });
+        }
+    
+        if (!empty($provider_type)) {
+            $query->whereIn('payment_provider', $provider_type);
+        }
+        
+        if (!empty($status)) {
+            $query->whereIn('status', $status);
+        }
+        
+        if (!empty($source)) {
+            $query->whereIn('entity_resource_name', $source);
+        }
+        
+        if (!empty($sourceType)) {
+            $query->whereIn('entity_source_type', $sourceType);
+        }
+        
+        // FIX: Properly handle the tag filtering - fix for the empty results issue
+        if (!empty($selectedTags)) {
+            // First, get contacts that have any of the selected tags
+            $contactsWithTags = Contact::where(function ($query) use ($selectedTags) {
+                foreach ($selectedTags as $tag) {
+                    $query->orWhereRaw("JSON_CONTAINS(tags, ?)", ['"' . $tag . '"']);
+                }
+            })->pluck('id');
+            
+            // Then filter transactions by those contacts
+            if ($contactsWithTags->isNotEmpty()) {
+                $query->whereIn('contactId', $contactsWithTags);
+            } else {
+                // If no contacts found with these tags, make sure no results are returned
+                $query->whereRaw('1 = 0');
+            }
+        }
+        
+        if ($startDate && $endDate) {
+            $query->whereBetween('create_time', [
+                Carbon::parse($startDate)->startOfDay(),
+                Carbon::parse($endDate)->endOfDay()
+            ]);
+        }
+        
+        // Calculate total amount for succeeded transactions
+        $totalAmount = (clone $query)
+            ->where('status', 'succeeded')
+            ->sum('amount');
+        
+        // Get paginated results using Laravel's built-in pagination
+        $transactions = $query->paginate(12);
+        
+        // Debug info about tag filtering
+        $tagFilterInfo = '';
+        if (!empty($selectedTags)) {
+            $tagFilterInfo = 'Filtrado por etiquetas: ' . implode(', ', $selectedTags) . 
+                           ' - Contactos encontrados: ' . (isset($contactsWithTags) ? $contactsWithTags->count() : 0);
+        }
+        
+        // Set no results message
+        $noResultsMessage = $transactions->isEmpty() 
+            ? 'No se encontraron registros con los filtros aplicados.' . 
+              (!empty($tagFilterInfo) ? ' ' . $tagFilterInfo : '')
+            : '';
+
+        return view('admin.transactions.index', [
+            'transactions' => $transactions,
+            'search' => $search,
+            'status' => $status,
+            'source' => $source,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'provider_type' => $provider_type,
+            'sourceType' => $sourceType,
+            'selectedTags' => $selectedTags,
+            'sourceNames' => $sourceNames,
+            'filteredSourceNames' => $filteredSourceNames,
+            'filteredMainSources' => $filteredMainSources,
+            'filteredSecondarySources' => $filteredSecondarySources,
+            'sourceTypeNames' => $sourceTypeNames,
+            'availableTags' => $availableTags,
+            'totalAmount' => $totalAmount,
+            'noResultsMessage' => $noResultsMessage,
+            'filtersApplied' => $filtersApplied,
+            'tagsFilterApplied' => $tagsFilterApplied,
+            'allSources' => $allSources,
+            'prioritySources' => $prioritySources,
+            'otherSources' => $otherSources
+        ]);
     }
 }

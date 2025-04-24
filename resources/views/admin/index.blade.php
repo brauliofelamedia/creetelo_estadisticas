@@ -60,17 +60,58 @@
         </div>
         <!-- Fin Filtro Global -->
 
+        <!-- Debug Info - Solo visible para administradores -->
+        @if(isset($debugInfo) && auth()->user() && auth()->user()->is_admin)
+        <div class="card shadow-sm border mb-10">
+            <div class="card-header bg-light">
+                <h6 class="mb-0">Información de depuración</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <p><strong>Fecha inicio:</strong> {{ $debugInfo['startDate'] }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <p><strong>Fecha fin:</strong> {{ $debugInfo['endDate'] }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <p><strong>Filtro activo:</strong> {{ $debugInfo['hasFilter'] ? 'Sí' : 'No' }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <p><strong>Transacciones filtradas:</strong> {{ $debugInfo['totalFilteredTransactions'] }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @endif
+        <!-- Fin Debug Info -->
+
         <div class="row row-cols-xxxl-6 row-cols-lg-3 row-cols-sm-2 row-cols-1 gy-4 mb-10">
             <div class="col">
                 <div class="card shadow-none border bg-gradient-start-1 h-100">
                 <div class="card-body p-20">
                     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
                     <div>
-                        <p class="fw-medium text-primary-light mb-1">Contactos</p>
+                        <p class="fw-medium text-primary-light mb-1">Contactos totales</p>
                         <h6 class="mb-0">{{number_format($currentContacts,0)}}</h6>
                     </div>
                     <div class="w-50-px h-50-px bg-cyan rounded-circle d-flex justify-content-center align-items-center">
                         <iconify-icon icon="gridicons:multiple-users" class="text-white text-2xl mb-0"></iconify-icon>
+                    </div>
+                    </div>
+                </div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="card shadow-none border bg-gradient-start-7 h-100">
+                <div class="card-body p-20">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                    <div>
+                        <p class="fw-medium text-primary-light mb-1">Membresías activas</p>
+                        <h6 class="mb-0">{{number_format($activeMemberships,0)}}</h6>
+                    </div>
+                    <div class="w-50-px h-50-px bg-success rounded-circle d-flex justify-content-center align-items-center">
+                        <iconify-icon icon="mdi:account-check" class="text-white text-2xl mb-0"></iconify-icon>
                     </div>
                     </div>
                 </div>
@@ -155,7 +196,7 @@
         </div>
     
         <div class="row gy-4">
-            <div class="col-xxl-9 col-xl-12">
+            <div class="col-xxl-6 col-xl-12">
                 <div class="card h-100">
                     <div class="card-body">
                         <div class="d-flex flex-wrap align-items-center justify-content-between">
@@ -183,7 +224,7 @@
                                 </span>
                             </li>
                             <li class="d-flex align-items-center gap-2">
-                                <span class="w-12-px h-12-px radius-2 bg-yellow"></span>
+                                <span class="w-12-px h-12-px radius-2 bg-orange"></span>
                                 <span class="text-secondary-light text-sm fw-normal">
                                     Paypal: <span class="text-primary-light fw-semibold">{{$paypalCount}} - ${{number_format($paypalTotal,2)}} USD</span>
                                 </span>
@@ -192,21 +233,58 @@
                     </div>
                 </div>
             </div>
-            <div class="col-xxl-6 col-xl-12">
+            <div class="col-xxl-3 col-xl-6">
                 <div class="card h-100 radius-8 border-0 overflow-hidden">
                     <div class="card-body p-24">
-                        <h6 class="mb-12 fw-semibold text-lg mb-16">Ingresos diarios de {{ Carbon\Carbon::now()->locale('es')->isoFormat('MMMM YYYY') }}</h6>
-                        <div class="d-flex align-items-center gap-2 mb-20">
-                            <h6 class="fw-semibold mb-0">${{number_format($totalCurrentMonth,0)}} USD</h6>
+                        <div class="d-flex align-items-center flex-wrap gap-2 justify-content-between">
+                            <h6 class="mb-2 fw-bold text-lg">Estados de contactos</h6>
                         </div>
-                        <div id="dailyChart" class="dailyChart"></div>
+                        <div id="contactStatusDonutChart" class="apexcharts-tooltip-z-none"></div>
+                        <ul class="d-flex flex-wrap align-items-center justify-content-between mt-3 gap-3">
+                            <li class="d-flex align-items-center gap-2">
+                                <span class="w-12-px h-12-px radius-2 bg-success-main"></span>
+                                <span class="text-secondary-light text-sm fw-normal">
+                                    Activos: <span class="text-success fw-semibold">{{number_format($activeSubscriptions,0)}}</span>
+                                </span>
+                            </li>
+                            <li class="d-flex align-items-center gap-2">
+                                <span class="w-12-px h-12-px radius-2 bg-danger"></span>
+                                <span class="text-secondary-light text-sm fw-normal">
+                                    Cancelados: <span class="text-danger fw-semibold">{{number_format($canceledSubscriptions,0)}}</span>
+                                </span>
+                            </li>
+                            <li class="d-flex align-items-center gap-2">
+                                <span class="w-12-px h-12-px radius-2 bg-info"></span>
+                                <span class="text-secondary-light text-sm fw-normal">
+                                    Prueba: <span class="text-info fw-semibold">{{number_format($trialingSubscriptions,0)}}</span>
+                                </span>
+                            </li>
+                            <li class="d-flex align-items-center gap-2">
+                                <span class="w-12-px h-12-px radius-2 bg-warning"></span>
+                                <span class="text-secondary-light text-sm fw-normal">
+                                    Pausados: <span class="text-warning fw-semibold">{{number_format($pausedSubscriptions,0)}}</span>
+                                </span>
+                            </li>
+                            <li class="d-flex align-items-center gap-2">
+                                <span class="w-12-px h-12-px radius-2 bg-secondary"></span>
+                                <span class="text-secondary-light text-sm fw-normal">
+                                    Vencidos: <span class="text-secondary fw-semibold">{{number_format($pastDueSubscriptions,0)}}</span>
+                                </span>
+                            </li>
+                            <li class="d-flex align-items-center gap-2">
+                                <span class="w-12-px h-12-px radius-2 bg-muted"></span>
+                                <span class="text-secondary-light text-sm fw-normal">
+                                    Expirados: <span class="text-muted fw-semibold">{{number_format($incompleteExpiredSubscriptions,0)}}</span>
+                                </span>
+                            </li>
+                        </ul>
                     </div>
                 </div>
             </div>
-            <div class="col-xxl-6 col-xl-12">
+            <div class="col-xxl-12 col-xl-12">
                 <div class="card h-100 radius-8 border-0 overflow-hidden">
                     <div class="card-body p-24">
-                        <h6 class="mb-12 fw-semibold text-lg mb-16">Ingresos diarios de</h6>
+                        <h6 class="mb-12 fw-semibold text-lg mb-16">Ingresos diarios de {{ Carbon\Carbon::now()->locale('es')->isoFormat('MMMM YYYY') }}</h6>
                         <div class="d-flex align-items-center gap-2 mb-20">
                             <h6 class="fw-semibold mb-0">${{number_format($totalCurrentMonth,0)}} USD</h6>
                         </div>
@@ -379,8 +457,12 @@
     var dailyOptions = {
         series: [
             {
-                name: "Ingresos",
-                data: {!! json_encode($dailyAmounts) !!}
+                name: "Stripe",
+                data: {!! json_encode($dailyStripeAmounts) !!}
+            },
+            {
+                name: "PayPal",
+                data: {!! json_encode($dailyPaypalAmounts) !!}
             }
         ],
         chart: {
@@ -389,6 +471,7 @@
             toolbar: {
                 show: false
             },
+            stacked: true,
         },
         plotOptions: {
             bar: {
@@ -403,15 +486,15 @@
         },
         fill: {
             type: 'gradient',
-            colors: ['#487FFF'],
+            colors: ['#487FFF', '#FF9F29'],
             gradient: {
                 shade: 'light',
                 type: 'vertical',
                 shadeIntensity: 0.5,
-                gradientToColors: ['#487FFF'],
+                gradientToColors: ['#487FFF', '#FF9F29'],
                 inverseColors: false,
                 opacityFrom: 1,
-                opacityTo: 0.8,
+                opacityTo: 1,
                 stops: [0, 100],
             },
         },
@@ -429,9 +512,89 @@
                     return "$" + value + " USD";
                 }
             },
+        },
+        legend: {
+            show: true,
+            position: 'top',
+            horizontalAlign: 'right',
+            fontSize: '14px',
+            fontFamily: 'Inter, sans-serif',
+            markers: {
+                width: 10,
+                height: 10,
+                radius: 12,
+            },
+            itemMargin: {
+                horizontal: 10,
+                vertical: 0
+            },
         }
     };
     var dailyChart = new ApexCharts(document.querySelector("#dailyChart"), dailyOptions);
     dailyChart.render();
+
+    // ================================ Contact Status Donut chart Start ================================
+    var contactStatusOptions = { 
+      series: [
+        {{$activeSubscriptions}}, 
+        {{$canceledSubscriptions}}, 
+        {{$trialingSubscriptions}}, 
+        {{$pausedSubscriptions}}, 
+        {{$pastDueSubscriptions}}, 
+        {{$incompleteExpiredSubscriptions}}
+      ],
+      colors: ['#28a745', '#dc3545', '#17a2b8', '#ffc107', '#6c757d', '#ced4da'],
+      labels: ['Activos', 'Cancelados', 'Prueba', 'Pausados', 'Vencidos', 'Expirados'],
+      legend: {
+          show: false,
+      },
+      chart: {
+        type: 'donut',    
+        height: 270,
+        sparkline: {
+          enabled: true   
+        },
+        margin: {
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0
+        },
+        padding: {
+          top: 0,
+          right: 0,
+          bottom: 0,
+          left: 0
+        },
+      },
+      stroke: {
+        width: 0,
+      },
+      dataLabels: {
+        enabled: false
+      },
+      tooltip: {
+        enabled: true,
+        y: {
+          formatter: function(value) {
+            return value + " contactos";
+          }
+        }
+      },
+      responsive: [{
+        breakpoint: 480,
+        options: {
+          chart: {
+            width: 200,
+          },
+          legend: {
+            position: 'bottom'
+          },
+        }
+      }]
+    };
+    var contactStatusChart = new ApexCharts(document.querySelector("#contactStatusDonutChart"), contactStatusOptions);
+    contactStatusChart.render();
+    // ================================ Contact Status Donut chart End ================================
 </script>
 @endpush

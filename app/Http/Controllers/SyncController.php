@@ -27,6 +27,8 @@ class SyncController extends Controller
         $transactions = $transactions->get(0);
         $data = collect($transactions->getData());
         $total = $data['totalCount'];
+
+        dd($data['data'][10]);
         
         return view('sync.progress', [
             'total' => $total,
@@ -44,6 +46,8 @@ class SyncController extends Controller
         $transactions = new Transactions();
         $transactions = $transactions->get($offset);
         $data = collect($transactions->getData());
+
+        dd($data);
 
         foreach($data['data'] as $item){
             /*if ($item->entitySourceType != 'membership') {

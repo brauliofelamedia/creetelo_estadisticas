@@ -17,6 +17,7 @@ class FilterController extends Controller
     protected $projectedData = [];
     protected $projectionPeriod = '';
     protected $availableTags = [];
+    protected $availablePaymentProviders = ['stripe', 'paypal'];
 
     public function __construct()
     {
@@ -26,8 +27,8 @@ class FilterController extends Controller
 
     protected function loadAvailableTags()
     {
-        // Use a fixed list of specific tags
-        $this->availableTags = [
+        // Define initial tags
+        $initialTags = [
             'wowfriday_plan mensual',
             'wowfriday_plan anual',
             'creetelo_mensual',
@@ -38,6 +39,11 @@ class FilterController extends Controller
             'bj25_compro_mensual',
             'creetelo_cancelado'
         ];
+        
+        // Filter out tags that start with "M. 💎" but keep those that start with "M."
+        $this->availableTags = array_filter($initialTags, function($tag) {
+            return strpos($tag, 'M. 💎') !== 0;
+        });
     }
 
     protected function filterByTags($subscription, $selectedTags)
@@ -98,6 +104,17 @@ class FilterController extends Controller
         // Todas las fuentes para tener el listado completo
         $sources = $allTransactions->pluck('entity_resource_name')->unique()->values()->toArray();
         
+        // Filtrar las fuentes que comienzan con "M."
+        $mSources = array_filter($sources, function($source) {
+            return strpos($source, 'M.') === 0;
+        });
+        
+        // Get unique payment providers from transactions
+        $paymentProviders = $allTransactions->pluck('payment_provider')->unique()->filter()->values()->toArray();
+        if (empty($paymentProviders)) {
+            $paymentProviders = $this->availablePaymentProviders;
+        }
+        
         // Procesar parámetros del request
         $startDate = $request->get('start_date');
         $endDate = $request->get('end_date');
@@ -108,12 +125,13 @@ class FilterController extends Controller
             $endDate = $now->endOfWeek()->format('Y-m-d');
         }
 
-        $selectedSources = $request->input('sources') ? array_map('urldecode', $request->input('sources', [])) : array('Únete a Créetelo Mensual');
+        $selectedSources = $request->input('sources') ? array_map('urldecode', $request->input('sources', [])) : (!empty($mSources) ? $mSources : array('Únete a Créetelo Mensual','Únete a Créetelo Anual'));
         $selectedSourceTypes = $request->input('source_types') ? array_map('urldecode', $request->input('source_types', [])) : $sourcesTypes;
-        $selectedTags = $request->input('tags') ? array_map('urldecode', $request->input('tags', [])) : $this->availableTags;
+        $selectedTags = $request->input('tags') ? array_map('urldecode', $request->input('tags', [])) : [];
+        $selectedPaymentProviders = $request->input('payment_providers') ? array_map('urldecode', $request->input('payment_providers', [])) : $paymentProviders;
         
         // Aplicar filtros combinados en una sola pasada
-        $filteredTransactions = $allTransactions->filter(function($transaction) use ($selectedSources, $selectedSourceTypes, $startDate, $endDate) {
+        $filteredTransactions = $allTransactions->filter(function($transaction) use ($selectedSources, $selectedSourceTypes, $selectedPaymentProviders, $startDate, $endDate) {
             // Filtro por fuentes seleccionadas
             if (!empty($selectedSources)) {
                 if (!in_array($transaction->entity_resource_name, $selectedSources)) {
@@ -124,6 +142,14 @@ class FilterController extends Controller
             // Filtro por tipos de fuentes
             if (!empty($selectedSourceTypes)) {
                 if (!in_array($transaction->entity_source_type, $selectedSourceTypes)) {
+                    return false;
+                }
+            }
+            
+            // Filtro por proveedor de pago
+            if (!empty($selectedPaymentProviders)) {
+                $provider = $transaction->payment_provider ?? ''; 
+                if (!in_array($provider, $selectedPaymentProviders)) {
                     return false;
                 }
             }
@@ -220,7 +246,9 @@ class FilterController extends Controller
             'selectedSources' => $selectedSources,
             'selectedSourceTypes' => $selectedSourceTypes,
             'availableTags' => $this->availableTags,
-            'selectedTags' => $selectedTags
+            'selectedTags' => $selectedTags,
+            'paymentProviders' => $paymentProviders,
+            'selectedPaymentProviders' => $selectedPaymentProviders
         ]);
     }
 
@@ -237,7 +265,7 @@ class FilterController extends Controller
             });
         }
 
-        $selectedTags = request()->input('tags') ? array_map('urldecode', request()->input('tags', [])) : $this->availableTags;
+        $selectedTags = request()->input('tags') ? array_map('urldecode', request()->input('tags', [])) : [];
 
         // Group transactions by date and calculate totals
         $dailyTotals = [];
@@ -322,7 +350,7 @@ class FilterController extends Controller
             });
         }
 
-        $selectedTags = request()->input('tags') ? array_map('urldecode', request()->input('tags', [])) : $this->availableTags;
+        $selectedTags = request()->input('tags') ? array_map('urldecode', request()->input('tags', [])) : [];
 
         // Group subscriptions by month and calculate totals
         $monthlyTotals = [];
@@ -386,7 +414,7 @@ class FilterController extends Controller
         
         $selectedSources = $request->input('sources') ? array_map('urldecode', $request->input('sources', [])) : $sources;
         $selectedSourceTypes = $request->input('source_types') ? array_map('urldecode', $request->input('source_types', [])) : $typeSources;
-        $selectedTags = $request->input('tags') ? array_map('urldecode', $request->input('tags', [])) : $this->availableTags;
+        $selectedTags = $request->input('tags') ? array_map('urldecode', $request->input('tags', [])) : [];
         
         // Get the month period from request (default: 1 - current month)
         $monthPeriod = (int) $request->input('month_period', 1);
@@ -501,7 +529,7 @@ class FilterController extends Controller
         $typeSources = $subscriptionsAll->pluck('source_type')->unique()->values()->toArray();
         $selectedSources = $request->input('sources') ? array_map('urldecode', $request->input('sources', [])) : array('M. Créetelo Mensual Activas');
         $selectedSourceTypes = $request->input('source_types') ? array_map('urldecode', $request->input('source_types', [])) : $typeSources;
-        $selectedTags = $request->input('tags') ? array_map('urldecode', $request->input('tags', [])) : $this->availableTags;
+        $selectedTags = $request->input('tags') ? array_map('urldecode', $request->input('tags', [])) : [];
         $startDate = $request->get('start_date');
         $endDate = $request->get('end_date');
 

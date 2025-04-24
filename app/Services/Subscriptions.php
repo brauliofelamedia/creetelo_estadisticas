@@ -62,4 +62,33 @@ class Subscriptions
             return response()->json(['error' => 'Request failed'], 500);
         }
     }
+
+    public function getById($id)
+    {
+        try {
+            // Realizar la solicitud GET
+            $response = $this->client->get("payments/subscriptions/{$id}", [
+                'headers' => [
+                    'Accept' => 'application/json',
+                    'Version' => '2021-07-28',
+                    'Authorization' => 'Bearer ' . $this->config->access_token,
+                ],
+                'query' => [
+                    'altId' => $this->config->location_id,
+                    'altType' => 'location',
+                ],
+            ]);
+
+            $data = json_decode($response->getBody(), true);
+            return response()->json($data, 200);
+
+        } catch (Exception $e) {
+            // Manejo de errores
+            if ($e->getCode() == 401) {
+                return response()->json(['error' => 'Unauthorized request'], 401);
+            }
+
+            return response()->json(['error' => 'Request failed'], 500);
+        }
+    }
 }

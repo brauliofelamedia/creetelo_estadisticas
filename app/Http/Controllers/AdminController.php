@@ -32,13 +32,6 @@ class AdminController extends Controller
         $transactionsSucceded = collect($transactions)->filter(function($item) {
             return $item->status === 'succeeded' && $item->livemode === '1';
         })->values()->all();
-        
-        // Filter contacts by date range if filter is applied
-        $currentContacts = $request->has('monthYearStart') || $request->has('monthYearEnd')
-            ? Contact::whereBetween('date_added', [$startDate, $endDate])->count()
-            : Contact::count();
-            
-        $currentUsers = User::count();
 
         // Filter transactions by date range for current period
         $filteredTransactions = collect($transactionsSucceded)
@@ -48,40 +41,129 @@ class AdminController extends Controller
             });
             
         $totalCurrentPeriod = $filteredTransactions->sum('amount');
-
-        // Calculate cancellation rate
-        $allFilteredTransactions = collect($transactions)
-            ->filter(function ($item) use ($startDate, $endDate) {
-                $itemDate = Carbon::parse($item->create_time);
-                return $itemDate->between($startDate, $endDate) && $item->livemode === '1';
-            });
         
-        $cancelledTransactions = $allFilteredTransactions->filter(function($item) {
-            return $item->status === 'cancelled' || $item->status === 'failed';
-        });
-        
-        $totalTransactions = $allFilteredTransactions->count();
-        $cancelledCount = $cancelledTransactions->count();
-        $cancellationRate = $totalTransactions > 0 ? ($cancelledCount / $totalTransactions) * 100 : 0;
+        // Count contacts by subscription status - Refactor to fix filtering issues
+        if ($request->has('monthYearStart') || $request->has('monthYearEnd')) {
+            // Create a base query first
+            $contactsBaseQuery = Contact::whereBetween('date_added', [$startDate, $endDate]);
+            
+            // Total contacts in the date range
+            $currentContacts = (clone $contactsBaseQuery)->count();
+            
+            // Active subscriptions in the date range
+            $activeSubscriptions = (clone $contactsBaseQuery)
+                ->whereHas('subscription', function($query) {
+                    $query->where('status', 'active');
+                })->count();
+            
+            // Canceled subscriptions in the date range
+            $canceledSubscriptions = (clone $contactsBaseQuery)
+                ->whereHas('subscription', function($query) {
+                    $query->where('status', 'canceled');
+                })->count();
+            
+            // Trialing subscriptions in the date range
+            $trialingSubscriptions = (clone $contactsBaseQuery)
+                ->whereHas('subscription', function($query) {
+                    $query->where('status', 'trialing');
+                })->count();
+            
+            // Paused subscriptions in the date range
+            $pausedSubscriptions = (clone $contactsBaseQuery)
+                ->whereHas('subscription', function($query) {
+                    $query->where('status', 'paused');
+                })->count();
+            
+            // Past due subscriptions in the date range
+            $pastDueSubscriptions = (clone $contactsBaseQuery)
+                ->whereHas('subscription', function($query) {
+                    $query->where('status', 'past_due');
+                })->count();
+            
+            // Incomplete expired subscriptions in the date range
+            $incompleteExpiredSubscriptions = (clone $contactsBaseQuery)
+                ->whereHas('subscription', function($query) {
+                    $query->where('status', 'incomplete_expired');
+                })->count();
+            
+            // Total contacts with subscriptions in the date range
+            $totalSubscriptions = (clone $contactsBaseQuery)
+                ->whereHas('subscription')->count();
+                
+            // Contacts with canceled subscriptions in the date range
+            $cancelledCount = (clone $contactsBaseQuery)
+                ->whereHas('subscription', function($query) {
+                    $query->where('status', 'canceled');
+                })->count();
+        } else {
+            // Total contacts
+            $currentContacts = Contact::count();
+            
+            // Active subscriptions
+            $activeSubscriptions = Contact::whereHas('subscription', function($query) {
+                $query->where('status', 'active');
+            })->count();
+            
+            // Canceled subscriptions
+            $canceledSubscriptions = Contact::whereHas('subscription', function($query) {
+                $query->where('status', 'canceled');
+            })->count();
+            
+            // Trialing subscriptions
+            $trialingSubscriptions = Contact::whereHas('subscription', function($query) {
+                $query->where('status', 'trialing');
+            })->count();
+            
+            // Paused subscriptions
+            $pausedSubscriptions = Contact::whereHas('subscription', function($query) {
+                $query->where('status', 'paused');
+            })->count();
+            
+            // Past due subscriptions
+            $pastDueSubscriptions = Contact::whereHas('subscription', function($query) {
+                $query->where('status', 'past_due');
+            })->count();
+            
+            // Incomplete expired subscriptions
+            $incompleteExpiredSubscriptions = Contact::whereHas('subscription', function($query) {
+                $query->where('status', 'incomplete_expired');
+            })->count();
+            
+            // Total contacts with subscriptions
+            $totalSubscriptions = Contact::whereHas('subscription')->count();
+                
+            // Total contacts with canceled subscriptions
+            $cancelledCount = Contact::whereHas('subscription', function($query) {
+                $query->where('status', 'canceled');
+            })->count();
+        }   
+            
+        $currentUsers = User::count();
 
-        // Get best month within filter period
+        // Mejoras para garantizar que se muestre correctamente el año en el mejor mes
         $bestMonth = collect($transactionsSucceded)
             ->filter(function ($item) use ($startDate, $endDate) {
                 $itemDate = Carbon::parse($item->create_time);
                 return $itemDate->between($startDate, $endDate);
             })
             ->groupBy(function ($item) {
-                return Carbon::parse($item->create_time)->month;
+                $date = Carbon::parse($item->create_time);
+                return $date->format('Y-m'); // Format as YYYY-MM to include year
             })
-            ->map(function ($items, $month) {
+            ->map(function ($items, $yearMonth) {
+                $dateParts = explode('-', $yearMonth);
+                $year = $dateParts[0];
+                $month = (int)$dateParts[1];
+                
                 return [
                     'month' => $this->monthSpanish($month),
+                    'year' => $year,
                     'amount' => $items->sum('amount')
                 ];
             })
             ->sortBy('amount')
-            ->last() ?: ['month' => '', 'amount' => 0];
-
+            ->last() ?: ['month' => '', 'year' => '', 'amount' => 0];
+            
         // Keep original monthly calculations for comparison charts
         $totalCurrentMonth = collect($transactionsSucceded)
             ->filter(function ($item) {
@@ -89,7 +171,7 @@ class AdminController extends Controller
                     Carbon::parse($item->create_time)->month === Carbon::now()->month;
             })
             ->sum('amount');
-
+            
         // Original year calculations
         $totalCurrentYear = collect($transactionsSucceded)
             ->filter(function ($item) {
@@ -102,14 +184,14 @@ class AdminController extends Controller
                 return Carbon::parse($item->create_time)->year === Carbon::now()->subYear(1)->year;
             })
             ->sum('amount');
-
+        
         // Get payment methods from filtered transactions
         $stripe = $filteredTransactions->filter(function ($item) {
             return in_array($item->payment_provider, ['stripe']);
         });
         $stripeCount = $stripe->count();
         $stripeTotal = $stripe->sum('amount');
-
+        
         $paypal = $filteredTransactions->filter(function ($item) {
             return in_array($item->payment_provider, ['paypal']);
         });
@@ -133,7 +215,7 @@ class AdminController extends Controller
                 });
             })
             ->values();
-
+            
         $lastYearMonthlyAmounts = collect($transactionsSucceded)
             ->filter(function ($item) {
                 return Carbon::parse($item->create_time)->year === Carbon::now()->subYear(1)->year;
@@ -150,13 +232,14 @@ class AdminController extends Controller
                 });
             })
             ->values();
-    
+            
         $now = Carbon::now();
         $thirtyDaysAgo = Carbon::now()->subDays(30);
         $usersThirtyDaysAgo = User::where('created_at', '<=', $thirtyDaysAgo)->count();
         $userDifference = $currentContacts - $usersThirtyDaysAgo;
         $latestUsers = User::orderBy('created_at', 'desc')->take(5)->get();
 
+        // Añadir desglose por día con información del año y mes correctos
         $dailyAmounts = collect($transactionsSucceded)
             ->filter(function ($item) {
                 return Carbon::parse($item->create_time)->month === Carbon::now()->month
@@ -190,7 +273,7 @@ class AdminController extends Controller
                     return $collection->get($week, 0);
                 });
             });
-
+            
         // Calculate current week amount
         $currentWeekAmount = collect($transactionsSucceded)
             ->filter(function ($item) {
@@ -199,20 +282,77 @@ class AdminController extends Controller
             })
             ->sum('amount');
             
+        // Calculate daily amounts by payment provider
+        $dailyStripeAmounts = collect($transactionsSucceded)
+            ->filter(function ($item) {
+                return Carbon::parse($item->create_time)->month === Carbon::now()->month 
+                    && Carbon::parse($item->create_time)->year === Carbon::now()->year
+                    && $item->payment_provider === 'stripe';
+            })
+            ->groupBy(function ($item) {
+                return Carbon::parse($item->create_time)->day;
+            })
+            ->map(function ($items) {
+                return $items->sum('amount');
+            })
+            ->pipe(function ($collection) {
+                return collect(range(1, Carbon::now()->daysInMonth))->map(function ($day) use ($collection) {
+                    return $collection->get($day, 0);
+                });
+            });
+            
+        $dailyPaypalAmounts = collect($transactionsSucceded)
+            ->filter(function ($item) {
+                return Carbon::parse($item->create_time)->month === Carbon::now()->month 
+                    && Carbon::parse($item->create_time)->year === Carbon::now()->year
+                    && $item->payment_provider === 'paypal';
+            })
+            ->groupBy(function ($item) {
+                return Carbon::parse($item->create_time)->day;
+            })
+            ->map(function ($items) {
+                return $items->sum('amount');
+            })
+            ->pipe(function ($collection) {
+                return collect(range(1, Carbon::now()->daysInMonth))->map(function ($day) use ($collection) {
+                    return $collection->get($day, 0);
+                });
+            });
+            
         // Create variables for filtered data display
         $filteredPeriod = $this->monthSpanish($startDate->month) . ' ' . $startDate->year . ' - ' . 
-                 $this->monthSpanish($endDate->month) . ' ' . $endDate->year;
+                          $this->monthSpanish($endDate->month) . ' ' . $endDate->year;
+        
+        // Debug information to help troubleshoot
+        $debugInfo = [
+            'startDate' => $startDate->toDateTimeString(),
+            'endDate' => $endDate->toDateTimeString(),
+            'hasFilter' => $request->has('monthYearStart') || $request->has('monthYearEnd'),
+            'totalFilteredTransactions' => $filteredTransactions->count()
+        ];
 
+        // Calculate total transactions (for cancellation rate)
+        $totalTransactions = $totalSubscriptions > 0 ? $totalSubscriptions : 1;  // Prevent division by zero
+        
+        // Calculate cancellation rate
+        $cancellationRate = $totalTransactions > 0 ? ($cancelledCount / $totalTransactions) * 100 : 0;
+                          
+        // Check if activeMemberships is being used in the view
+        $activeMemberships = $activeSubscriptions; // Assuming this is what was intended
+        
         return view('admin.index', compact(
             'stripeCount', 'paypalCount', 'paypalTotal', 'stripeTotal',
             'currentContacts', 'currentUsers', 'userDifference', 'latestUsers',
             'totalCurrentYear', 'bestMonth', 'totalLastYear', 'totalCurrentMonth',
             'monthlyAmounts', 'lastYearMonthlyAmounts', 'paypal', 'stripe',
             'weeklyAmounts', 'currentWeekAmount', 'dailyAmounts', 'filteredPeriod',
-            'totalCurrentPeriod', 'cancellationRate', 'cancelledCount', 'totalTransactions'
+            'totalCurrentPeriod', 'cancellationRate', 'cancelledCount', 'totalTransactions',
+            'activeSubscriptions', 'canceledSubscriptions', 'trialingSubscriptions',
+            'pausedSubscriptions', 'pastDueSubscriptions', 'incompleteExpiredSubscriptions',
+            'dailyStripeAmounts', 'dailyPaypalAmounts', 'activeMemberships', 'debugInfo'
         ));
     }
-
+    
     public function config()
     {
         return view('admin.config');

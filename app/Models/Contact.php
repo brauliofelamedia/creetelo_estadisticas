@@ -55,4 +55,14 @@ class Contact extends Model
         return $country ? $country->name : null;
     }
 
+    public function transactions()
+    {
+        return $this->hasMany(Transaction::class, 'email', 'email');
+    }
+
+    public function subscription()
+    {
+        return $this->hasOne(Subscription::class, 'contactId', 'id');
+    }
+
 }

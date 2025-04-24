@@ -72,7 +72,7 @@
   <script src="{{asset('assets/js/lib/audioplayer.js')}}"></script>
   <script src="{{asset('assets/js/app.js')}}"></script>
     <!-- Sweet Alert2 -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   @if(Route::is('admin.index'))
   @endif
   @stack('scripts')
