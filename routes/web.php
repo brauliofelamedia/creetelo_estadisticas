@@ -235,15 +235,24 @@ Route::post('logout', [AuthController::class, 'logout'])->name('logout');
     return new WelcomeMail($user);
 });*/
 
+//Create storage and optimize
+Route::get('/create-storage-and-optimize', function () {
+    Artisan::call('storage:link');
+    Artisan::call('optimize:clear');
+    Artisan::call('cache:clear');
+    Artisan::call('config:clear');
+    Artisan::call('route:clear');
+    Artisan::call('view:clear');
+    Artisan::call('event:clear');
+    Artisan::call('config:cache');
+    Artisan::call('route:cache');
+    Artisan::call('view:cache');
+    Artisan::call('event:cache');
+    return 'Storage link created and all caches cleared and regenerated successfully';
+});
+
 Route::middleware('auth')->prefix('dashboard')->group(function () {
     Route::get('/', [AdminController::class, 'index'])->name('admin.index');
-
-    //Create storage and optimize
-    Route::get('/create-storage-and-optimize', function () {
-        Artisan::call('storage:link');
-        Artisan::call('optimize:clear');
-        return 'Storage link creado exitosamente y limpiado el cache';
-    });
 
     //Config
     Route::post('config/media', [ConfigController::class, 'media'])->name('config.media');
