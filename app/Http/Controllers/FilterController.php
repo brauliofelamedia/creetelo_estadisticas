@@ -369,7 +369,18 @@ class FilterController extends Controller
             return $subscription->status === 'active';
         });
         
+        // Filter canceled subscriptions within the period
+        $canceledSubscriptions = $subscriptions->filter(function($subscription) use ($startDateObj, $endDateObj) {
+            if ($subscription->status !== 'canceled' || empty($subscription->canceled_at)) {
+                return false;
+            }
+            
+            $cancelDate = Carbon::parse($subscription->canceled_at);
+            return $cancelDate->between($startDateObj, $endDateObj);
+        });
+        
         $result['total']['active_count'] = $activeSubscriptions->count();
+        $result['total']['canceled'] = $canceledSubscriptions->count();
         
         // Create a day-by-day analysis through the date range
         $currentDate = $startDateObj->copy();
@@ -420,12 +431,13 @@ class FilterController extends Controller
                     $result['by_source'][$sourceName]['to_be_charged']++;
                     $result['by_source'][$sourceName]['to_be_charged_amount'] += $subscription->amount ?: 0;
                 }
-                
-                // Check if subscription was canceled on this day
+            }
+            
+            // Check for subscriptions canceled on this day
+            foreach ($canceledSubscriptions as $subscription) {
                 if ($this->wasSubscriptionCanceledOnDate($subscription, $currentDate)) {
                     $dayData['canceled']++;
                     $dayData['canceled_amount'] += $subscription->amount ?: 0;
-                    $result['total']['canceled']++;
                     
                     // Track by source
                     $sourceName = $subscription->entity_resource_name ?: 'Unknown';
