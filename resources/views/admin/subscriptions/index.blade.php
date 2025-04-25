@@ -19,26 +19,41 @@
     <div class="card basic-data-table">
         <div class="card-body">
             <form class="row g-3 align-items-center mb-12 pt-10" action="" method="GET" id="filterForm">
-                <div class="col-auto d-flex align-items-center">
-                    <div class="form-check form-check-inline mb-0">
-                        <input name="status[]" class="form-check-input" type="checkbox" value="active" id="status-active"
-                            {{ in_array('active', $status ?? []) ? 'checked' : '' }}>
-                        <label class="form-check-label" for="status-active">Activo</label>
-                    </div>
-                    <div class="form-check form-check-inline mb-0">
-                        <input name="status[]" class="form-check-input" type="checkbox" value="canceled" id="status-canceled"
-                            {{ in_array('canceled', $status ?? []) ? 'checked' : '' }}>
-                        <label class="form-check-label" for="status-canceled">Cancelado</label>
-                    </div>
-                    <div class="form-check form-check-inline mb-0">
-                        <input name="status[]" class="form-check-input" type="checkbox" value="incomplete_expired" id="status-incomplete-expired"
-                            {{ in_array('incomplete_expired', $status ?? []) ? 'checked' : '' }}>
-                        <label class="form-check-label" for="status-incomplete-expired">Incompleto / expirado</label>
-                    </div>
-                    <div class="form-check form-check-inline mb-0">
-                        <input name="status[]" class="form-check-input" type="checkbox" value="past_due" id="status-past-due"
-                            {{ in_array('past_due', $status ?? []) ? 'checked' : '' }}>
-                        <label class="form-check-label" for="status-past-due">Vencidos</label>
+                <div class="col-auto">
+                    <div class="dropdown tag-filter-dropdown">
+                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="statusFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="selected-status-count">Estatus</span>
+                        </button>
+                        <div class="dropdown-menu p-3" aria-labelledby="statusFilterDropdown" style="min-width: 250px;">
+                            <div class="status-checkboxes">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input status-checkbox-all" type="checkbox" name="status[]" value="*" id="statusAll" {{ in_array('*', (array)request('status')) ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="statusAll">Todos los estatus</label>
+                                </div>
+                                <div class="dropdown-divider"></div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input status-checkbox" type="checkbox" name="status[]" value="active" id="status-active" {{ in_array('active', $status ?? []) ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="status-active">Activo</label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input status-checkbox" type="checkbox" name="status[]" value="canceled" id="status-canceled" {{ in_array('canceled', $status ?? []) ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="status-canceled">Cancelado</label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input status-checkbox" type="checkbox" name="status[]" value="incomplete_expired" id="status-incomplete-expired" {{ in_array('incomplete_expired', $status ?? []) ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="status-incomplete-expired">Incompleto</label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input status-checkbox" type="checkbox" name="status[]" value="past_due" id="status-past-due" {{ in_array('past_due', $status ?? []) ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="status-past-due">Vencidos</label>
+                                </div>
+                            </div>
+                            <div class="dropdown-divider mt-2"></div>
+                            <div class="d-flex justify-content-between mt-2">
+                                <button type="button" class="btn btn-sm btn-outline-secondary clear-status-btn">Limpiar</button>
+                                <button type="button" class="btn btn-sm btn-primary apply-status-btn">Aplicar</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
@@ -47,6 +62,13 @@
                     <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#combinedFilterSidebar">
                     <i class="fas fa-filter"></i> Filtros
                     </button>
+                </div>
+
+                <!-- Export Button -->
+                <div class="col-auto">
+                    <a href="{{ route('subscriptions.export', request()->query()) }}" class="btn btn-success">
+                        <i class="fas fa-file-export"></i> Exportar
+                    </a>
                 </div>
         
                 <!-- Combined Sidebar -->
@@ -171,6 +193,7 @@
                             <th class="d-none d-md-table-cell">Tipo</th>
                             <th>Membresía</th>
                             <th>Estatus</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -202,6 +225,22 @@
                                     @endif
                                 </td>
                                 <td class="d-none d-md-table-cell">{{ \Carbon\Carbon::parse($subscription->create_time)->format('d-m-Y h:s') }}</td>
+                                <td>
+                                    <div class="d-flex gap-2">
+                                        @if($subscription->contact->phone)
+                                            <a href="https://api.whatsapp.com/send?phone={{ preg_replace('/[^0-9]/', '', $subscription->contact->phone) }}" 
+                                               target="_blank" class="btn btn-sm btn-success" title="Contactar por WhatsApp">
+                                                <iconify-icon icon="bi:whatsapp"></iconify-icon>
+                                            </a>
+                                        @endif
+                                        @if($subscription->contact->email)
+                                            <a target="_blank" href="mailto:{{ $subscription->contact->email }}" 
+                                               class="btn btn-sm btn-primary" title="Enviar correo">
+                                                <iconify-icon icon="mdi:email"></iconify-icon>
+                                            </a>
+                                        @endif
+                                    </div>
+                                </td>
                             </tr>
                             @endforeach
                         @endif
@@ -280,6 +319,18 @@
             document.getElementById('filterForm').appendChild(perPageSelect.parentNode.cloneNode(true));
             perPageSelect.parentNode.style.display = 'none';
         }
+
+        // Set up apply-status-btn click handler
+        document.querySelector('.apply-status-btn').addEventListener('click', function() {
+            document.getElementById('filterForm').submit();
+        });
+
+        // Optional: handle the clear button too
+        document.querySelector('.clear-status-btn').addEventListener('click', function() {
+            document.querySelectorAll('.status-checkbox, .status-checkbox-all').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+        });
     });
 </script>
 @endpush

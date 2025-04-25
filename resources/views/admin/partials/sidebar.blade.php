@@ -45,6 +45,9 @@
                             <a href="{{route('filters')}}"><i class="ri-circle-fill circle-icon text-danger-main w-auto"></i> Filtrar</a>
                         </li>
                         <li>
+                            <a href="{{route('filters.actives')}}"><i class="ri-circle-fill circle-icon text-danger-main w-auto"></i> Activos</a>
+                        </li>
+                        <li>
                             <a href="{{route('filters.subscriptions')}}"><i class="ri-circle-fill circle-icon text-warning-main w-auto"></i> Subscripciones</a>
                         </li>
                     </ul>

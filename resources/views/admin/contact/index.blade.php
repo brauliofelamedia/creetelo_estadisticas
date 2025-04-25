@@ -21,19 +21,22 @@
             <form class="row g-3 align-items-center mb-12 pt-10" method="GET" action="{{ route('contacts.index') }}">
                 <div class="col-auto">
                     <select name="country" id="country" class="form-control form-select">
-                        <option value="*">-- Seleccionar el país --</option>
-                        @foreach($countries as $key => $country)
-                            <option value="{{$country}}" {{ request('country') == $country ? 'selected' : '' }}>{{$country}}</option>
+                        <option value="*">-- País --</option>
+                        @foreach($countries as $name)
+                            <option value="{{ $name }}" {{ request('country') == $name ? 'selected' : '' }}>{{ $name }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div class="col-auto">
                     <select name="date_filter" id="date_filter" class="form-control form-select">
-                        <option value="*">-- Selecciona fecha de registro --</option>
+                        <option value="*">-- Tiempo de vida --</option>
                         <option value="{{ now()->startOfWeek()->format('Y-m-d') }}" {{ request('date_filter') == now()->startOfWeek()->format('Y-m-d') ? 'selected' : '' }}>Esta semana</option>
                         <option value="{{ now()->subMonth()->format('Y-m-d') }}" {{ request('date_filter') == now()->subMonth()->format('Y-m-d') ? 'selected' : '' }}>Último mes</option>
                         <option value="{{ now()->subMonths(2)->format('Y-m-d') }}" {{ request('date_filter') == now()->subMonths(2)->format('Y-m-d') ? 'selected' : '' }}>Últimos 2 meses</option>
                         <option value="{{ now()->subMonths(3)->format('Y-m-d') }}" {{ request('date_filter') == now()->subMonths(3)->format('Y-m-d') ? 'selected' : '' }}>Más de 3 meses</option>
+                        <option value="{{ now()->subMonths(6)->format('Y-m-d') }}" {{ request('date_filter') == now()->subMonths(6)->format('Y-m-d') ? 'selected' : '' }}>Más de 6 meses</option>
+                        <option value="{{ now()->subYear()->format('Y-m-d') }}" {{ request('date_filter') == now()->subYear()->format('Y-m-d') ? 'selected' : '' }}>Hace 1 año</option>
+                        <option value="{{ now()->subMonths(18)->format('Y-m-d') }}" {{ request('date_filter') == now()->subMonths(18)->format('Y-m-d') ? 'selected' : '' }}>Hace 1 año y medio</option>
                     </select>
                 </div>
                 <div class="col-auto">
@@ -69,6 +72,11 @@
                 <div class="col-auto">
                     <button type="submit" class="btn btn-primary">Filtrar</button>
                 </div>
+                <div class="col-auto">
+                    <a href="{{ route('contacts.export', request()->all()) }}" class="btn btn-success">
+                        Exportar resultados
+                    </a>
+                </div>
             </form>
 
             <div class="table-responsive">
@@ -80,13 +88,13 @@
                             <th class="d-none d-md-table-cell">País</th>
                             <th>Valor del lead</th>
                             <th>Tiempo de vida</th>
-                            <th class="d-none d-md-table-cell">Actualizado</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         @if($noResultsMessage)
                             <tr>
-                                <td colspan="7">
+                                <td colspan="8">
                                     <div class="p-4 text-center text-muted">
                                         {{ $noResultsMessage }}
                                     </div>
@@ -101,19 +109,34 @@
                             @endphp
                             <tr>
                                 <td class="d-none d-md-table-cell">{{ $contact->id }}</td>
-                                <td>{{ $contact->fullname }}</td>
+                                <td>{{ $contact->fullname }} <small style="display: block;">{{ $contact->email }}</small></td>
                                 <td class="d-none d-md-table-cell">{{ $contact->country }}</td>
                                 <td class="{{ $totalTransactions > 100 ? 'text-success' : 'text-success' }}">{{ $totalTransactions > 0 ? '$'.number_format($totalTransactions, 2).' USD' : '-' }}</td>
                                 <td title="{{ \Carbon\Carbon::parse($contact->date_added)->format('d/m/Y H:i:s') }}">{{ \Carbon\Carbon::parse($contact->date_added)->diffForHumans() }}</td>
-                                <td class="d-none d-md-table-cell" title="{{ \Carbon\Carbon::parse($contact->date_update)->format('d/m/Y H:i:s') }}">{{ \Carbon\Carbon::parse($contact->date_update)->diffForHumans() }}</td>
+                                <td>
+                                    <div class="d-flex gap-2">
+                                        @if($contact->phone)
+                                            <a href="https://api.whatsapp.com/send?phone={{ preg_replace('/[^0-9]/', '', $contact->phone) }}" 
+                                               target="_blank" class="btn btn-sm btn-success" title="Contactar por WhatsApp">
+                                                <iconify-icon icon="bi:whatsapp"></iconify-icon>
+                                            </a>
+                                        @endif
+                                        @if($contact->email)
+                                            <a target="_blank" href="mailto:{{ $contact->email }}" 
+                                               class="btn btn-sm btn-primary" title="Enviar correo">
+                                                <iconify-icon icon="mdi:email"></iconify-icon>
+                                            </a>
+                                        @endif
+                                    </div>
+                                </td>
                             </tr>
                             @endforeach
                         @endif
                     </tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="3" class="text-end fw-bold">Total gastado:</td>
-                            <td colspan="3" class="{{ $totalAmount > 1000 ? 'text-success fw-bold' : 'text-warning fw-bold' }}">
+                            <td colspan="4" class="text-end fw-bold">Total gastado:</td>
+                            <td colspan="3" class="{{ $totalAmount > 50 ? 'text-success fw-bold' : 'text-warning fw-bold' }}">
                                 {{ $totalAmount > 0 ? '$'.number_format($totalAmount, 2).' USD' : '-' }}
                             </td>
                         </tr>

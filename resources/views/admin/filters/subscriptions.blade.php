@@ -58,6 +58,29 @@
                                 </div>
                                 
                                 <hr style="margin:10px 0;">
+                                
+                                <!-- Tags Filter Section -->
+                                <div class="form-group mb-10" style="display: none;">
+                                    <label class="label-bold">Tags</label>
+                                    @foreach($tags ?? [] as $key => $tag)
+                                        <div class="form-check mb-2" style="font-size: 0.9rem;">
+                                            <input class="form-check-input form-check-input-sm" 
+                                                name="tags[]" 
+                                                type="checkbox" 
+                                                id="tag-{{ $key }}" 
+                                                value="{{ urlencode($tag) }}"
+                                                {{ in_array($tag, $selectedTags ?? []) ? 'checked' : '' }}>
+                                                <label class="form-check-label" for="tag-{{ $key }}">
+                                                    {{ $tag }}
+                                                </label>
+                                        </div>
+                                    @endforeach
+                                    <div class="d-flex gap-2 mb-3">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" style="width:100%;" id="selectAllTags">Seleccionar</button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" style="width:100%;" id="deselectAllTags">Deseleccionar</button>
+                                    </div>
+                                </div>
+                                
                                 <div class="form-group mb-10">
                                     <label class="label-bold">Membresías</label>
                                     @foreach($allSources as $key => $source)
@@ -80,55 +103,6 @@
                                     <button type="submit" class="btn btn-primary" style="width: 100%;">Filtrar</button>
                                 </div>
                                 
-                                <!-- Tags Filter Section -->
-                                <hr style="margin:10px 0;">
-                                <div class="form-group mb-10">
-                                    <label class="label-bold">Tags</label>
-                                    @if(isset($allTags) && is_array($allTags) && count($allTags) > 0)
-                                        @php
-                                            $predefinedTags = [
-                                                'wowfriday_plan mensual',
-                                                'wowfriday_plan anual',
-                                                'creetelo_mensual',
-                                                'créetelo_mensual',
-                                                'creetelo_anual',
-                                                'créetelo_anual',
-                                                'bj25_compro_anual',
-                                                'bj25_compro_mensual',
-                                                'creetelo_cancelado'
-                                            ];
-                                        @endphp
-
-                                        <!-- Regular Tags -->
-                                        @foreach($allTags as $key => $tag)
-                                            <div class="form-check mb-2" style="font-size: 0.9rem;">
-                                                <input class="form-check-input form-check-input-sm {{ in_array($tag, $predefinedTags) ? 'predefined-tag' : '' }}" 
-                                                    name="tags[]" 
-                                                    type="checkbox" 
-                                                    id="tag-{{ $key }}" 
-                                                    value="{{ $tag }}"
-                                                    {{ in_array($tag, $selectedTags) ? 'checked' : '' }}>
-                                                <label class="form-check-label" for="tag-{{ $key }}">
-                                                    {{ $tag }}
-                                                    @if(in_array($tag, $predefinedTags))
-                                                        <span class="badge bg-primary bg-opacity-50 ms-1" style="font-size: 0.7rem">Predefinido</span>
-                                                    @endif
-                                                </label>
-                                            </div>
-                                        @endforeach
-                                        <div class="d-flex gap-2 mb-3">
-                                            <button type="button" class="btn btn-sm btn-outline-primary" style="width:100%;" id="selectAllTags">Seleccionar Todos</button>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" style="width:100%;" id="deselectAllTags">Deseleccionar Todos</button>
-                                        </div>
-                                        <div class="d-flex gap-2 mb-3">
-                                            <button type="button" class="btn btn-sm btn-outline-primary" style="width:100%;" id="selectAllPredefinedTags">Seleccionar Predefinidos</button>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" style="width:100%;" id="deselectAllPredefinedTags">Deseleccionar Predefinidos</button>
-                                        </div>
-                                    @else
-                                        <p class="text-muted small">No hay tags disponibles</p>
-                                    @endif
-                                    <button type="submit" class="btn btn-primary" style="width: 100%;">Filtrar</button>
-                                </div>
                             </div>
                         </div>
                     </form>
@@ -138,7 +112,7 @@
         <div class="col-lg-9">
             <div class="card mb-20">
                 <div class="card-header">
-                    <h6 class="card-title mb-0">Resumen de subscripciones</h6>
+                    <h6 class="card-title mb-0">Resumen de subscripciones (todos los tipos: membership, payment_link, funnel)</h6>
                 </div>
                 <div class="card-body">
                     <!-- Estadísticas globales -->
@@ -188,6 +162,15 @@
                                 <div class="card-body">
                                     <h6>Tasa de cancelación</h6>
                                     <h5>{{ number_format($totalStats['churn_rate'], 2) }}%</h5>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Add new card for canceled creetelo_mensual subscriptions -->
+                        <div class="col-6 mt-3">
+                            <div class="card bg-danger bg-opacity-10">
+                                <div class="card-body">
+                                    <h6>Canceladas con tag "creetelo_cancelado"</h6>
+                                    <h5>{{ $totalStats['canceled_creetelo_count'] }} ({{ number_format($totalStats['canceled_creetelo_rate'], 2) }}%)</h5>
                                 </div>
                             </div>
                         </div>

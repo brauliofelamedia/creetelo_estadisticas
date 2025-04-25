@@ -8,7 +8,7 @@ class Transaction extends Model
 {
     public function contact()
     {
-        return $this->belongsTo(Contact::class);
+        return $this->belongsTo(Contact::class,'email','email');
     }
         
     public function scopeFilterByTag($query, $tagId)

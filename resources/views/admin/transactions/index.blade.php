@@ -158,6 +158,11 @@
                         <i class="fas fa-search"></i> Filtrar
                     </button>
                 </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-info" formaction="{{ route('transactions.export') }}">
+                        <i class="fas fa-file-export"></i> Exportar Excel
+                    </button>
+                </div>
                 <div class="col-auto ms-auto">
                     <input type="search" name="search" id="search" class="form-control" placeholder="Buscar..." value="{{ $search }}">
                 </div>
@@ -173,6 +178,7 @@
                             <th>Nombre</th>
                             <th>Estatus</th>
                             <th class="d-none d-md-table-cell">Fecha de creación</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -204,6 +210,22 @@
                                     @endif
                                 </td>
                                 <td class="d-none d-md-table-cell">{{ \Carbon\Carbon::parse($transaction->create_time)->format('d-m-Y') }}</td>
+                                <td>
+                                    <div class="d-flex gap-2">
+                                        @if($transaction->contact->phone)
+                                            <a href="https://api.whatsapp.com/send?phone={{ preg_replace('/[^0-9]/', '', $transaction->contact->phone) }}" 
+                                               target="_blank" class="btn btn-sm btn-success" title="Contactar por WhatsApp">
+                                                <iconify-icon icon="bi:whatsapp"></iconify-icon>
+                                            </a>
+                                        @endif
+                                        @if($transaction->contact->email)
+                                            <a target="_blank" href="mailto:{{ $transaction->contact->email }}" 
+                                               class="btn btn-sm btn-primary" title="Enviar correo">
+                                                <iconify-icon icon="mdi:email"></iconify-icon>
+                                            </a>
+                                        @endif
+                                    </div>
+                                </td>
                             </tr>
                             @endforeach
                         @endif

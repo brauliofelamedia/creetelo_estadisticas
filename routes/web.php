@@ -268,6 +268,7 @@ Route::middleware('auth')->prefix('dashboard')->group(function () {
     Route::prefix('contacts')->group(function () {
         Route::get('/',[ContactController::class,'index'])->name('contacts.index');
         Route::get('insert',[ContactController::class,'insert'])->name('contacts.insert');
+        Route::get('export', [ContactController::class, 'export'])->name('contacts.export');
     });
 
     //Opportunities
@@ -279,6 +280,7 @@ Route::middleware('auth')->prefix('dashboard')->group(function () {
     Route::prefix('transactions')->group(function () {
         Route::get('/',[TransactionController::class,'index'])->name('transactions.index');
         Route::get('update',[TransactionController::class,'update'])->name('transactions.update');
+        Route::get('export', [TransactionController::class, 'export'])->name('contacts.export');
     });
 
     //Subscriptions
@@ -286,6 +288,7 @@ Route::middleware('auth')->prefix('dashboard')->group(function () {
         Route::get('/',[SubscriptionController::class,'index'])->name('subscriptions.index');
         Route::get('get',[SubscriptionController::class,'get'])->name('subscriptions.update');
         Route::get('getById/{id}',[SubscriptionController::class,'getById'])->name('subscriptions.getById');
+        Route::get('export', [SubscriptionController::class, 'export'])->name('subscriptions.export');
     });
 
     //Filters
@@ -295,6 +298,7 @@ Route::middleware('auth')->prefix('dashboard')->group(function () {
         Route::get('day',[FilterController::class,'comparationForDay'])->name('filters.day');
         Route::get('month',[FilterController::class,'comparationForMonth'])->name('filters.month');
         Route::get('projection',[FilterController::class,'projection'])->name('filters.projection');
+        Route::get('actives',[FilterController::class,'actives'])->name('filters.actives');
         Route::get('subscriptions',[FilterController::class,'subscriptions'])->name('filters.subscriptions');
         Route::get('updateAllJson',[FilterController::class,'updateAllJSON'])->name('update.json');
         Route::get('sources-by-type', [FilterController::class, 'getSourcesByType'])->name('filters.sources-by-type');
@@ -314,6 +318,9 @@ Route::middleware('auth')->prefix('dashboard')->group(function () {
 
 // Add the missing route for filtering sources by type
 Route::get('/admin/filters/get-sources-by-type', [App\Http\Controllers\FilterController::class, 'getSourcesByType'])->name('get.sources.by.type');
+
+// Add this route if it doesn't exist
+Route::get('/transactions/export', [TransactionController::class, 'export'])->name('transactions.export');
 
 
 

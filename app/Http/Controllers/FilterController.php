@@ -84,6 +84,58 @@ class FilterController extends Controller
         return false;
     }
 
+    protected function hasCreeteloMensualTag($subscription)
+    {
+        if (!isset($subscription->contact) || !$subscription->contact) {
+            return false;
+        }
+        
+        $contactTags = $subscription->contact->tags;
+        
+        // Check if tags is a JSON string
+        if (is_string($contactTags) && is_array(json_decode($contactTags, true))) {
+            $contactTagsArray = json_decode($contactTags, true);
+            return in_array('creetelo_mensual', $contactTagsArray);
+        } 
+        // Check if tags is already an array
+        else if (is_array($contactTags)) {
+            return in_array('creetelo_mensual', $contactTags);
+        }
+        // Check if tags is a comma-separated string
+        else if (is_string($contactTags)) {
+            $contactTagsArray = explode(',', $contactTags);
+            return in_array('creetelo_mensual', $contactTagsArray);
+        }
+        
+        return false;
+    }
+
+    protected function hasCreeteloTagCancelado($subscription)
+    {
+        if (!isset($subscription->contact) || !$subscription->contact) {
+            return false;
+        }
+        
+        $contactTags = $subscription->contact->tags;
+        
+        // Check if tags is a JSON string
+        if (is_string($contactTags) && is_array(json_decode($contactTags, true))) {
+            $contactTagsArray = json_decode($contactTags, true);
+            return in_array('creetelo_cancelado', $contactTagsArray);
+        } 
+        // Check if tags is already an array
+        else if (is_array($contactTags)) {
+            return in_array('creetelo_cancelado', $contactTags);
+        }
+        // Check if tags is a comma-separated string
+        else if (is_string($contactTags)) {
+            $contactTagsArray = explode(',', $contactTags);
+            return in_array('creetelo_cancelado', $contactTagsArray);
+        }
+        
+        return false;
+    }
+
     public function filters(Request $request)
     {
         // Obtener datos y parámetros
@@ -250,6 +302,361 @@ class FilterController extends Controller
             'paymentProviders' => $paymentProviders,
             'selectedPaymentProviders' => $selectedPaymentProviders
         ]);
+    }
+
+    public function actives(Request $request)
+    {
+        // Get date parameters or set defaults
+        $startMonth1 = $request->get('start_month1', date('n'));
+        $startYear1 = $request->get('start_year1', date('Y'));
+        $endMonth1 = $request->get('end_month1', date('n'));
+        $endYear1 = $request->get('end_year1', date('Y'));
+        
+        // Create date ranges for the period
+        $startDate1 = Carbon::createFromDate($startYear1, $startMonth1, 1)->startOfMonth();
+        $endDate1 = Carbon::createFromDate($endYear1, $endMonth1, 1)->endOfMonth();
+        
+        // Also get the month before the period for comparison
+        $previousPeriod1Start = $startDate1->copy()->subMonth();
+        $previousPeriod1End = $endDate1->copy()->subMonth();
+        
+        // Fetch all subscriptions
+        $allSubscriptions = Subscription::with('contact')->get();
+        
+        // Process subscriptions for both current period and previous period
+        $period1Data = $this->getDetailedSubscriptionData($allSubscriptions, $startDate1, $endDate1);
+        $previousPeriod1Data = $this->getDetailedSubscriptionData($allSubscriptions, $previousPeriod1Start, $previousPeriod1End);
+        
+        // Calculate growth metrics
+        $period1Growth = $this->calculateGrowthMetrics($period1Data, $previousPeriod1Data);
+        
+        return view('admin.filters.actives', [
+            'period1Data' => $period1Data,
+            'period1Growth' => $period1Growth,
+            'startMonth1' => $startMonth1,
+            'startYear1' => $startYear1,
+            'endMonth1' => $endMonth1,
+            'endYear1' => $endYear1,
+            'startDate1' => $startDate1->format('Y-m-d'),
+            'endDate1' => $endDate1->format('Y-m-d'),
+            'previousPeriod1' => $previousPeriod1Start->format('M Y') . ' - ' . $previousPeriod1End->format('M Y'),
+        ]);
+    }
+
+    private function getDetailedSubscriptionData($subscriptions, $startDate, $endDate)
+    {
+        $startDateObj = $startDate instanceof Carbon ? $startDate : Carbon::parse($startDate);
+        $endDateObj = $endDate instanceof Carbon ? $endDate : Carbon::parse($endDate);
+        
+        // Initialize result structure
+        $result = [
+            'period' => $startDateObj->format('M Y') . ' - ' . $endDateObj->format('M Y'),
+            'start_date' => $startDateObj->format('Y-m-d'),
+            'end_date' => $endDateObj->format('Y-m-d'),
+            'total' => [
+                'total_count' => 0,
+                'active_count' => 0,
+                'to_be_charged' => 0,
+                'canceled' => 0,
+                'total_amount' => 0,
+            ],
+            'by_source' => [],
+            'daily_data' => [],
+        ];
+        
+        // Filter active subscriptions
+        $activeSubscriptions = $subscriptions->filter(function($subscription) {
+            return $subscription->status === 'active';
+        });
+        
+        $result['total']['active_count'] = $activeSubscriptions->count();
+        
+        // Create a day-by-day analysis through the date range
+        $currentDate = $startDateObj->copy();
+        while ($currentDate->lte($endDateObj)) {
+            $dayKey = $currentDate->format('Y-m-d');
+            $dayData = [
+                'date' => $dayKey,
+                'formatted_date' => $currentDate->format('d M Y'),
+                'to_be_charged' => 0,
+                'to_be_charged_amount' => 0,
+                'canceled' => 0,
+                'canceled_amount' => 0,
+                'sources' => []
+            ];
+            
+            // Check each subscription
+            foreach ($activeSubscriptions as $subscription) {
+                // Determine if subscription is due for charge on this day
+                if ($this->isSubscriptionDueOnDate($subscription, $currentDate)) {
+                    $dayData['to_be_charged']++;
+                    $dayData['to_be_charged_amount'] += $subscription->amount ?: 0;
+                    $result['total']['to_be_charged']++;
+                    $result['total']['total_amount'] += $subscription->amount ?: 0;
+                    
+                    // Track by source
+                    $sourceName = $subscription->entity_resource_name ?: 'Unknown';
+                    if (!isset($dayData['sources'][$sourceName])) {
+                        $dayData['sources'][$sourceName] = [
+                            'to_be_charged' => 0,
+                            'to_be_charged_amount' => 0,
+                            'canceled' => 0,
+                            'canceled_amount' => 0,
+                        ];
+                    }
+                    
+                    $dayData['sources'][$sourceName]['to_be_charged']++;
+                    $dayData['sources'][$sourceName]['to_be_charged_amount'] += $subscription->amount ?: 0;
+                    
+                    // Also update source totals
+                    if (!isset($result['by_source'][$sourceName])) {
+                        $result['by_source'][$sourceName] = [
+                            'to_be_charged' => 0,
+                            'to_be_charged_amount' => 0,
+                            'canceled' => 0, 
+                            'canceled_amount' => 0,
+                        ];
+                    }
+                    $result['by_source'][$sourceName]['to_be_charged']++;
+                    $result['by_source'][$sourceName]['to_be_charged_amount'] += $subscription->amount ?: 0;
+                }
+                
+                // Check if subscription was canceled on this day
+                if ($this->wasSubscriptionCanceledOnDate($subscription, $currentDate)) {
+                    $dayData['canceled']++;
+                    $dayData['canceled_amount'] += $subscription->amount ?: 0;
+                    $result['total']['canceled']++;
+                    
+                    // Track by source
+                    $sourceName = $subscription->entity_resource_name ?: 'Unknown';
+                    if (!isset($dayData['sources'][$sourceName])) {
+                        $dayData['sources'][$sourceName] = [
+                            'to_be_charged' => 0,
+                            'to_be_charged_amount' => 0,
+                            'canceled' => 0,
+                            'canceled_amount' => 0,
+                        ];
+                    }
+                    
+                    $dayData['sources'][$sourceName]['canceled']++;
+                    $dayData['sources'][$sourceName]['canceled_amount'] += $subscription->amount ?: 0;
+                    
+                    // Also update source totals
+                    if (!isset($result['by_source'][$sourceName])) {
+                        $result['by_source'][$sourceName] = [
+                            'to_be_charged' => 0,
+                            'to_be_charged_amount' => 0,
+                            'canceled' => 0,
+                            'canceled_amount' => 0,
+                        ];
+                    }
+                    $result['by_source'][$sourceName]['canceled']++;
+                    $result['by_source'][$sourceName]['canceled_amount'] += $subscription->amount ?: 0;
+                }
+            }
+            
+            $result['daily_data'][$dayKey] = $dayData;
+            $currentDate->addDay();
+        }
+        
+        // Calculate total count (includes all subscriptions that had activity in the period)
+        $result['total']['total_count'] = $result['total']['to_be_charged'] + $result['total']['canceled'];
+        
+        return $result;
+    }
+
+    private function calculateGrowthMetrics($currentPeriodData, $previousPeriodData)
+    {
+        $growth = [
+            'total_count' => [
+                'value' => $currentPeriodData['total']['total_count'] - $previousPeriodData['total']['total_count'],
+                'percentage' => 0,
+            ],
+            'to_be_charged' => [
+                'value' => $currentPeriodData['total']['to_be_charged'] - $previousPeriodData['total']['to_be_charged'],
+                'percentage' => 0,
+            ],
+            'canceled' => [
+                'value' => $currentPeriodData['total']['canceled'] - $previousPeriodData['total']['canceled'],
+                'percentage' => 0,
+            ],
+            'total_amount' => [
+                'value' => $currentPeriodData['total']['total_amount'] - $previousPeriodData['total']['total_amount'],
+                'percentage' => 0,
+            ],
+            'by_source' => [],
+        ];
+        
+        // Calculate percentages
+        if ($previousPeriodData['total']['total_count'] > 0) {
+            $growth['total_count']['percentage'] = ($growth['total_count']['value'] / $previousPeriodData['total']['total_count']) * 100;
+        }
+        
+        if ($previousPeriodData['total']['to_be_charged'] > 0) {
+            $growth['to_be_charged']['percentage'] = ($growth['to_be_charged']['value'] / $previousPeriodData['total']['to_be_charged']) * 100;
+        }
+        
+        if ($previousPeriodData['total']['canceled'] > 0) {
+            $growth['canceled']['percentage'] = ($growth['canceled']['value'] / $previousPeriodData['total']['canceled']) * 100;
+        }
+        
+        if ($previousPeriodData['total']['total_amount'] > 0) {
+            $growth['total_amount']['percentage'] = ($growth['total_amount']['value'] / $previousPeriodData['total']['total_amount']) * 100;
+        }
+        
+        // Calculate growth by source
+        $allSources = array_unique(array_merge(
+            array_keys($currentPeriodData['by_source']),
+            array_keys($previousPeriodData['by_source'])
+        ));
+        
+        foreach ($allSources as $source) {
+            $currentSourceData = $currentPeriodData['by_source'][$source] ?? [
+                'to_be_charged' => 0, 
+                'to_be_charged_amount' => 0,
+                'canceled' => 0,
+                'canceled_amount' => 0
+            ];
+            
+            $previousSourceData = $previousPeriodData['by_source'][$source] ?? [
+                'to_be_charged' => 0, 
+                'to_be_charged_amount' => 0,
+                'canceled' => 0,
+                'canceled_amount' => 0
+            ];
+            
+            $growth['by_source'][$source] = [
+                'to_be_charged' => [
+                    'value' => $currentSourceData['to_be_charged'] - $previousSourceData['to_be_charged'],
+                    'percentage' => $previousSourceData['to_be_charged'] > 0 
+                        ? (($currentSourceData['to_be_charged'] - $previousSourceData['to_be_charged']) / $previousSourceData['to_be_charged']) * 100
+                        : 0,
+                ],
+                'to_be_charged_amount' => [
+                    'value' => $currentSourceData['to_be_charged_amount'] - $previousSourceData['to_be_charged_amount'],
+                    'percentage' => $previousSourceData['to_be_charged_amount'] > 0 
+                        ? (($currentSourceData['to_be_charged_amount'] - $previousSourceData['to_be_charged_amount']) / $previousSourceData['to_be_charged_amount']) * 100
+                        : 0,
+                ],
+                'canceled' => [
+                    'value' => $currentSourceData['canceled'] - $previousSourceData['canceled'],
+                    'percentage' => $previousSourceData['canceled'] > 0 
+                        ? (($currentSourceData['canceled'] - $previousSourceData['canceled']) / $previousSourceData['canceled']) * 100
+                        : 0,
+                ],
+            ];
+        }
+        
+        return $growth;
+    }
+
+    private function isSubscriptionDueOnDate($subscription, $date)
+    {
+        // If subscription has no start date, we cannot calculate
+        if (empty($subscription->start_date)) {
+            return false;
+        }
+        
+        // If subscription is not active, it's not due
+        if ($subscription->status !== 'active') {
+            return false;
+        }
+        
+        $subscriptionStart = Carbon::parse($subscription->start_date);
+        $checkDate = $date instanceof Carbon ? $date : Carbon::parse($date);
+        
+        // Get the billing interval (monthly or yearly)
+        $interval = $this->determineBillingInterval($subscription);
+        
+        // If subscription has an end date, check if it falls on our check date
+        if (!empty($subscription->end_date)) {
+            $endDate = Carbon::parse($subscription->end_date);
+            if ($endDate->isSameDay($checkDate)) {
+                return true;
+            }
+        }
+        
+        // Calculate next renewal date based on subscription start
+        $nextRenewal = $subscriptionStart->copy();
+        
+        // Find the next renewal date that's on or after our subscription start
+        while ($nextRenewal->lt($checkDate)) {
+            if ($interval === 'month') {
+                $nextRenewal->addMonth();
+            } else {
+                $nextRenewal->addYear();
+            }
+        }
+        
+        // If the calculated next renewal date matches our check date
+        return $nextRenewal->isSameDay($checkDate);
+    }
+
+    /**
+     * Determine if a subscription has monthly or yearly billing.
+     *
+     * @param object $subscription The subscription to analyze
+     * @return string 'month' or 'year' depending on subscription type
+     */
+    private function determineBillingInterval($subscription)
+    {
+        // Check subscription name/title for indications of billing period
+        $name = strtolower($subscription->entity_resource_name ?? '');
+        $description = strtolower($subscription->description ?? '');
+        
+        // Check for specific terms indicating annual billing
+        if (
+            strpos($name, 'anual') !== false || 
+            strpos($name, 'annual') !== false ||
+            strpos($name, 'yearly') !== false ||
+            strpos($description, 'anual') !== false ||
+            strpos($description, 'annual') !== false ||
+            strpos($description, 'yearly') !== false
+        ) {
+            return 'year';
+        }
+        
+        // Check if associated contact has yearly tag
+        if (isset($subscription->contact) && $subscription->contact) {
+            $contactTags = $subscription->contact->tags;
+            
+            // Parse tags from different formats
+            $tagArray = [];
+            if (is_string($contactTags) && is_array(json_decode($contactTags, true))) {
+                $tagArray = json_decode($contactTags, true);
+            } elseif (is_array($contactTags)) {
+                $tagArray = $contactTags;
+            } elseif (is_string($contactTags)) {
+                $tagArray = explode(',', $contactTags);
+            }
+            
+            // Check for annual tags
+            foreach ($tagArray as $tag) {
+                if (
+                    stripos($tag, 'anual') !== false || 
+                    stripos($tag, 'annual') !== false ||
+                    stripos($tag, 'yearly') !== false
+                ) {
+                    return 'year';
+                }
+            }
+        }
+        
+        // Default to monthly billing if no yearly indicators found
+        return 'month';
+    }
+
+    private function wasSubscriptionCanceledOnDate($subscription, $date)
+    {
+        // If subscription is not canceled or has no canceled_at date, return false
+        if ($subscription->status !== 'canceled' || empty($subscription->canceled_at)) {
+            return false;
+        }
+        
+        $canceledDate = Carbon::parse($subscription->canceled_at);
+        $checkDate = $date instanceof Carbon ? $date : Carbon::parse($date);
+        
+        return $canceledDate->isSameDay($checkDate);
     }
 
     public function comparationForDay()
@@ -527,7 +934,13 @@ class FilterController extends Controller
         $subscriptionsAll = Subscription::with('contact')->get();
         $sources = $subscriptionsAll->pluck('entity_resource_name')->unique()->values()->toArray();
         $typeSources = $subscriptionsAll->pluck('source_type')->unique()->values()->toArray();
-        $selectedSources = $request->input('sources') ? array_map('urldecode', $request->input('sources', [])) : array('M. Créetelo Mensual Activas');
+        $mSources = array_filter($sources, function($source) {
+            return strpos($source, 'M.') === 0 && strpos($source, 'M. 💎') !== 0;
+        });
+        
+        $defaultSources = array_merge($mSources, ['Únete a Créetelo Mensual', 'Únete a Créetelo Anual']);
+        
+        $selectedSources = $request->input('sources') ? array_map('urldecode', $request->input('sources', [])) : $defaultSources;
         $selectedSourceTypes = $request->input('source_types') ? array_map('urldecode', $request->input('source_types', [])) : $typeSources;
         $selectedTags = $request->input('tags') ? array_map('urldecode', $request->input('tags', [])) : [];
         $startDate = $request->get('start_date');
@@ -581,62 +994,64 @@ class FilterController extends Controller
         });
 
         $grouped = $subscriptions->groupBy('entity_resource_name')->map(function($group) {
-            // Filter memberships only for summary statistics
-            $membershipsOnly = $group->filter(function($sub) {
-                return $sub->source_type === 'membership';
-            });
+            // Filter memberships only for summary statistics (removed this filtering)
+            // We'll use all subscriptions for the statistics instead
             
             $byStatus = $group->groupBy('status');
-            $membershipsByStatus = $membershipsOnly->groupBy('status');
             
             $summary = [
                 'active' => [
                     'subscriptions' => $byStatus->get('active', collect())->values(),
-                    'count' => $membershipsByStatus->get('active', collect())->count(),
-                    'total_amount' => $byStatus->get('active', collect())->sum('amount'), // Use all source types for amount
-                    'avg_duration' => $membershipsByStatus->get('active', collect())->avg('duration')
+                    'count' => $byStatus->get('active', collect())->count(),
+                    'total_amount' => $byStatus->get('active', collect())->sum('amount'),
+                    'avg_duration' => $byStatus->get('active', collect())->avg('duration')
                 ],
                 'incomplete_expired' => [
                     'subscriptions' => $byStatus->get('incomplete_expired', collect())->values(),
-                    'count' => $membershipsByStatus->get('incomplete_expired', collect())->count(),
-                    'total_amount' => $byStatus->get('incomplete_expired', collect())->sum('amount'), // Use all source types for amount
-                    'avg_duration' => $membershipsByStatus->get('incomplete_expired', collect())->avg('duration')
+                    'count' => $byStatus->get('incomplete_expired', collect())->count(),
+                    'total_amount' => $byStatus->get('incomplete_expired', collect())->sum('amount'),
+                    'avg_duration' => $byStatus->get('incomplete_expired', collect())->avg('duration')
                 ],
                 'canceled' => [
                     'subscriptions' => $byStatus->get('canceled', collect())->values(),
-                    'count' => $membershipsByStatus->get('canceled', collect())->count(),
-                    'total_amount' => $byStatus->get('canceled', collect())->sum('amount'), // Use all source types for amount
-                    'avg_duration' => $membershipsByStatus->get('canceled', collect())->avg('duration')
+                    'count' => $byStatus->get('canceled', collect())->count(),
+                    'total_amount' => $byStatus->get('canceled', collect())->sum('amount'),
+                    'avg_duration' => $byStatus->get('canceled', collect())->avg('duration')
                 ],
                 'past_due' => [
                     'subscriptions' => $byStatus->get('past_due', collect())->values(),
-                    'count' => $membershipsByStatus->get('past_due', collect())->count(),
-                    'total_amount' => $byStatus->get('past_due', collect())->sum('amount'), // Use all source types for amount
-                    'avg_duration' => $membershipsByStatus->get('past_due', collect())->avg('duration')
+                    'count' => $byStatus->get('past_due', collect())->count(),
+                    'total_amount' => $byStatus->get('past_due', collect())->sum('amount'),
+                    'avg_duration' => $byStatus->get('past_due', collect())->avg('duration')
                 ],
                 'summary' => [
-                    'total_count' => $membershipsOnly->count(),
-                    'total_amount' => $group->where('status', 'active')->sum('amount'), // Use all source types for total amount
-                    'avg_duration' => $membershipsOnly->avg('duration')
+                    'total_count' => $group->count(),
+                    'total_amount' => $group->where('status', 'active')->sum('amount'),
+                    'avg_duration' => $group->avg('duration')
                 ]
             ];
 
             return $summary;
         });
 
-        // Calcular totales globales - counts solo para memberships, pero amounts para todos
-        $memberships = $subscriptions->filter(function($sub) {
-            return $sub->source_type === 'membership';
+        // Calculate cancelations with creetelo_cancelado tag
+        $canceledWithCreeteloTag = $subscriptions->filter(function($subscription) {
+            return $subscription->status === 'canceled' && $this->hasCreeteloTagCancelado($subscription);
         });
         
+        // Calculate global totals - use all subscriptions instead of just memberships
         $totalStats = [
-            'active_count' => $memberships->where('status', 'active')->count(),
-            'incomplete_expired_count' => $memberships->where('status', 'incomplete_expired')->count(),
-            'canceled_count' => $memberships->where('status', 'canceled')->count(),
-            'past_due_count' => $memberships->where('status', 'past_due')->count(),
-            'total_amount' => $subscriptions->where('status', 'active')->sum('amount'), // Use all subscriptions for total amount
-            'churn_rate' => $memberships->count() > 0 
-                ? ($memberships->where('status', 'canceled')->count() / $memberships->count()) * 100
+            'active_count' => $subscriptions->where('status', 'active')->count(),
+            'incomplete_expired_count' => $subscriptions->where('status', 'incomplete_expired')->count(),
+            'canceled_count' => $subscriptions->where('status', 'canceled')->count(),
+            'past_due_count' => $subscriptions->where('status', 'past_due')->count(),
+            'total_amount' => $subscriptions->where('status', 'active')->sum('amount'),
+            'churn_rate' => $subscriptions->count() > 0 
+                ? ($subscriptions->where('status', 'canceled')->count() / $subscriptions->count()) * 100
+                : 0,
+            'canceled_creetelo_count' => $canceledWithCreeteloTag->count(),
+            'canceled_creetelo_rate' => $canceledWithCreeteloTag->count() > 0 && $subscriptions->count() > 0
+                ? ($canceledWithCreeteloTag->count() / $subscriptions->count()) * 100
                 : 0
         ];
 
@@ -650,7 +1065,8 @@ class FilterController extends Controller
             'endDate' => $endDate,
             'totalStats' => $totalStats,
             'availableTags' => $this->availableTags,
-            'selectedTags' => $selectedTags
+            'selectedTags' => $selectedTags,
+            'tags' => $this->availableTags  // Adding the tags here
         ]);
     }
 

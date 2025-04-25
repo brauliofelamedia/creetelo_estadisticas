@@ -6,6 +6,8 @@ use App\Models\Contact;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Nnjeim\World\Models\Country;
+use App\Exports\ContactsExport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ContactController extends Controller
 {
@@ -72,15 +74,25 @@ class ContactController extends Controller
             ->where('country', '!=', '')
             ->pluck('country')
             ->unique()
-            ->sort(function ($a, $b) {
-                if ($a === 'United States') return -1;
-                if ($b === 'United States') return 1;
-                return $a <=> $b;
-            })->values()->toArray();
-
-        $countriesWithNames = Country::whereIn('iso2', $countriesUser)
-            ->pluck('name', 'iso2')
             ->toArray();
+            
+        // Get country names from the World package
+        $dbCountries = Country::whereIn('name', array_map('strtoupper', $countriesUser))
+            ->get(['name'])
+            ->toArray();
+            
+        // Create a properly formatted array of countries for the dropdown
+        $countriesWithNames = [];
+        foreach ($dbCountries as $country) {
+            $countriesWithNames[$country['name']] = $country['name'];
+        }
+        
+        // Sort countries, putting United States first
+        uasort($countriesWithNames, function ($a, $b) {
+            if ($a === 'United States') return -1;
+            if ($b === 'United States') return 1;
+            return $a <=> $b;
+        });
 
         // Define special tags that need to be highlighted
         $specialTags = [
@@ -136,5 +148,65 @@ class ContactController extends Controller
             'otherTags' => $otherTags,
             'totalAmount' => $totalAmount,
         ]);
+    }
+
+    public function export(Request $request) 
+    {
+        $query = Contact::query();
+
+        // Apply country filter
+        if ($request->has('country') && $request->country !== '*') {
+            $query->where('country', $request->country);
+        }
+
+        // Apply date filter
+        if ($request->has('date_filter') && $request->date_filter !== '*') {
+            switch($request->date_filter) {
+                case 'week':
+                    $query->whereBetween('date_added', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()]);
+                    break;
+                case 'month':
+                    $query->whereBetween('date_added', [Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth()]);
+                    break;
+                case 'year':
+                    $query->whereBetween('date_added', [Carbon::now()->startOfYear(), Carbon::now()->endOfYear()]);
+                    break;
+                default:
+                    // For specific dates
+                    $date = Carbon::parse($request->date_filter);
+                    $query->where('date_added', '>=', $date->format('Y-m-d'));
+                    break;
+            }
+        }
+
+        // Apply tag filter
+        if ($request->has('tag') && !in_array('*', (array)$request->tag)) {
+            $tagArray = (array)$request->tag;
+            if (!empty($tagArray)) {
+                $query->where(function($query) use ($tagArray) {
+                    foreach ($tagArray as $tag) {
+                        $query->orWhereJsonContains('tags', $tag);
+                    }
+                });
+            }
+        }
+
+        // Apply search
+        if ($request->has('search') && !empty($request->search)) {
+            $query->where(function($q) use ($request) {
+                $q->where('first_name', 'like', '%' . strtolower($request->search) . '%')
+                  ->orWhere('last_name', 'like', '%' . strtolower($request->search) . '%')
+                  ->orWhere('email', 'like', '%' . strtolower($request->search) . '%');
+            });
+        }
+
+        // Load transaction amounts for each contact with status succeeded
+        $query->with(['transactions' => function($query) {
+            $query->where('status', 'succeeded');
+        }]);
+
+        $filename = 'contacts_export_' . Carbon::now()->format('Y-m-d') . '.xlsx';
+
+        return Excel::download(new ContactsExport($query), $filename);
     }
 }

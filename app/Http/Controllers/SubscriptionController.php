@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\SubscriptionExport;
 use App\Models\Subscription;
 use Illuminate\Http\Request;
 use App\Models\Contact;
@@ -9,12 +10,12 @@ use App\Services\Subscriptions;
 use Illuminate\Support\Facades\Log;
 use Exception;
 use Carbon\Carbon;
+use Maatwebsite\Excel\Facades\Excel;
 
 class SubscriptionController extends Controller
 {
     public function index(Request $request)
     {
-        // Default filter values
         $search = $request->input('search', '');
         $perPage = $request->input('perPage', 15);
         // Set all statuses active by default when none are provided
@@ -40,7 +41,7 @@ class SubscriptionController extends Controller
         $source = $request->input('source', $prioritySources);
         $source_type = $request->input('source_type', ['funnel','membership','payment_link']);
         $provider_type = $request->input('provider_type', ['stripe', 'paypal']);
-        $selectedTags = $request->input('tags', []); // Changed from selectedTags to tags to match form input name
+        $selectedTags = $request->input('tags', []);
         $startDate = $request->input('startDate', Carbon::now()->startOfMonth()->format('Y-m-d'));
         $endDate = $request->input('endDate', Carbon::now()->endOfMonth()->format('Y-m-d'));
         
@@ -305,5 +306,95 @@ class SubscriptionController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    public function export(Request $request)
+    {
+        $search = $request->input('search', '');
+        $status = $request->has('status') ? $request->input('status') : ['active', 'canceled', 'incomplete_expired', 'past_due'];
+        $source = $request->input('source', []);
+        $source_type = $request->input('source_type', ['funnel','membership','payment_link']);
+        $provider_type = $request->input('provider_type', ['stripe', 'paypal']);
+        $selectedTags = $request->input('tags', []);
+        $startDate = $request->input('startDate', Carbon::now()->startOfMonth()->format('Y-m-d'));
+        $endDate = $request->input('endDate', Carbon::now()->endOfMonth()->format('Y-m-d'));
+        
+        // Convert array inputs from string if they come from query string
+        if (is_string($status)) {
+            $status = explode(',', $status);
+        }
+        if (is_string($source)) {
+            $source = explode(',', $source);
+        }
+        if (is_string($source_type)) {
+            $source_type = explode(',', $source_type);
+        }
+        if (is_string($provider_type)) {
+            $provider_type = explode(',', $provider_type);
+        }
+        if (is_string($selectedTags)) {
+            $selectedTags = explode(',', $selectedTags);
+        }
+        
+        // Start building the query
+        $query = Subscription::query()->with('contact');
+        
+        // Apply filters
+        if (!empty($search)) {
+            $query->whereHas('contact', function($q) use ($search) {
+                $q->where('first_name', 'like', '%' . $search . '%')
+                  ->orWhere('last_name', 'like', '%' . $search . '%');
+            });
+        }
+
+        if (!empty($status)) {
+            $query->whereIn('status', $status);
+        }
+
+        if (!empty($source)) {
+            $query->whereIn('entity_resource_name', $source);
+        }
+
+        if (!empty($source_type)) {
+            $query->whereIn('source_type', $source_type);
+        }
+
+        if (!empty($provider_type)) {
+            $query->whereIn('provider_type', $provider_type);
+        }
+
+        if ($startDate && $endDate) {
+            $query->whereBetween('create_time', [
+                Carbon::parse($startDate)->startOfDay(),
+                Carbon::parse($endDate)->endOfDay()
+            ]);
+        }
+        
+        // Filter by tags
+        if (!empty($selectedTags)) {
+            $query->whereHas('contact', function($q) use ($selectedTags) {
+                $q->where(function($subQuery) use ($selectedTags) {
+                    foreach ($selectedTags as $tag) {
+                        // Handle JSON format
+                        $subQuery->orWhere(function($jsonQuery) use ($tag) {
+                            $jsonQuery->whereRaw('JSON_CONTAINS(tags, ?)', ['"' . $tag . '"'])
+                                     ->orWhere('tags', 'like', '%"' . $tag . '"%');
+                        });
+                        
+                        // Handle comma-separated format
+                        $subQuery->orWhere(function($csvQuery) use ($tag) {
+                            $csvQuery->orWhere('tags', '=', $tag)
+                                   ->orWhere('tags', 'like', $tag . ',%')
+                                   ->orWhere('tags', 'like', '%,' . $tag . ',%')
+                                   ->orWhere('tags', 'like', '%,' . $tag);
+                        });
+                    }
+                });
+            });
+        }
+        
+        $filename = 'subscriptions_export_' . Carbon::now()->format('Y-m-d') . '.xlsx';
+        
+        return Excel::download(new SubscriptionExport($query), $filename);
     }
 }

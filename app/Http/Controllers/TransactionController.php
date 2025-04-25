@@ -2,14 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\TransactionsExport;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
-use App\Services\Transactions;
 use Carbon\Carbon;
 use App\Models\Contact;
-use App\Models\Subscription;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 
 class TransactionController extends Controller
 {
@@ -206,5 +204,71 @@ class TransactionController extends Controller
             'prioritySources' => $prioritySources,
             'otherSources' => $otherSources
         ]);
+    }
+
+    public function export(Request $request)
+    {
+        // Get filter parameters from request
+        $search = $request->input('search', '');
+        $status = $request->input('status', ['succeeded', 'refunded', 'failed']);
+        $startDate = $request->input('startDate', '2024-01-01');
+        $endDate = $request->input('endDate', Carbon::now()->format('Y-m-d'));
+        $provider_type = $request->input('provider_type', ['paypal','stripe']);
+        $sourceType = $request->input('sourceType', ['membership', 'subscription', 'payment_link','invoice','manual','communities','funnel']);
+        $selectedTags = $request->input('selectedTags', []);
+        $source = $request->input('source', []);
+
+        // Build the query
+        $query = Transaction::query()->with('contact');
+        
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%')
+                  ->orWhere('email', 'like', '%' . $search . '%');
+            });
+        }
+    
+        if (!empty($provider_type)) {
+            $query->whereIn('payment_provider', $provider_type);
+        }
+        
+        if (!empty($status)) {
+            $query->whereIn('status', $status);
+        }
+        
+        if (!empty($source)) {
+            $query->whereIn('entity_resource_name', $source);
+        }
+        
+        if (!empty($sourceType)) {
+            $query->whereIn('entity_source_type', $sourceType);
+        }
+        
+        // Handle tag filtering
+        if (!empty($selectedTags)) {
+            $contactsWithTags = Contact::where(function ($query) use ($selectedTags) {
+                foreach ($selectedTags as $tag) {
+                    $query->orWhereRaw("JSON_CONTAINS(tags, ?)", ['"' . $tag . '"']);
+                }
+            })->pluck('id');
+            
+            if ($contactsWithTags->isNotEmpty()) {
+                $query->whereIn('contactId', $contactsWithTags);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        }
+        
+        if ($startDate && $endDate) {
+            $query->whereBetween('create_time', [
+                Carbon::parse($startDate)->startOfDay(),
+                Carbon::parse($endDate)->endOfDay()
+            ]);
+        }
+
+        // Generate a meaningful filename with the current date
+        $filename = 'transactions_export_' . Carbon::now()->format('Y-m-d') . '.xlsx';
+        
+        return Excel::download(new TransactionsExport($query), $filename);
     }
 }
