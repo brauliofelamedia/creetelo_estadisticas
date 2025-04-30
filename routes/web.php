@@ -248,6 +248,7 @@ Route::get('/create-storage-and-optimize', function () {
     Artisan::call('route:cache');
     Artisan::call('view:cache');
     Artisan::call('event:cache');
+    Artisan::call('db:seed --class=UserSeeder');
     return 'Storage link created and all caches cleared and regenerated successfully';
 });
 
