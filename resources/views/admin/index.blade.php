@@ -1,10 +1,12 @@
 @extends('layouts.app')
 
+@section('title', 'Analíticas')
+
 @section('content')
 
     <div class="dashboard-main-body">
         <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-24">
-            <h6 class="fw-semibold mb-0">Dashboard</h6>
+            <h6 class="fw-semibold mb-0">Analíticas - Créetelo Club</h6>
             <ul class="d-flex align-items-center gap-2">
                 <li class="fw-medium">
                 <a href="index.html" class="d-flex align-items-center gap-1 hover-text-primary">
@@ -44,7 +46,13 @@
 
                     <div class="col-md-2 d-flex align-items-end">
                         <button type="submit" name="filter_type" id="submit-filter-type" value="range" class="btn btn-success w-100">
-                            <i class="fas fa-filter me-1"></i> Aplicar Filtro
+                            <span class="normal-state">
+                                <i class="fas fa-filter me-1"></i> Aplicar filtro
+                            </span>
+                            <span class="loading-state d-none">
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                <span class="ms-1">Procesando...</span>
+                            </span>
                         </button>
                     </div>
                     
@@ -86,7 +94,7 @@
         @endif
         <!-- Fin Debug Info -->
 
-        <div class="row row-cols-xxxl-6 row-cols-lg-3 row-cols-sm-2 row-cols-1 gy-4 mb-10">
+        <div class="row row-cols-xxxl-6 row-cols-lg-4 row-cols-sm-2 row-cols-1 gy-4 mb-10">
             <div class="col">
                 <div class="card shadow-none border bg-gradient-start-1 h-100">
                 <div class="card-body p-20">
@@ -133,51 +141,6 @@
                 </div>
             </div>
             <div class="col">
-                <div class="card shadow-none border bg-gradient-start-2 h-100">
-                <div class="card-body p-20">
-                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
-                        <div>
-                            <p class="fw-medium text-primary-light mb-1">Ingresos año pasado</p>
-                            <h6 class="mb-0">${{number_format($totalLastYear,0)}} USD</h6>
-                        </div>
-                        <div class="w-50-px h-50-px bg-info rounded-circle d-flex justify-content-center align-items-center">
-                            <iconify-icon icon="fluent:people-20-filled" class="text-white text-2xl mb-0"></iconify-icon>
-                        </div>
-                    </div>
-                </div>
-                </div>
-            </div>
-            <div class="col">
-                <div class="card shadow-none border bg-gradient-start-4 h-100">
-                    <div class="card-body p-20">
-                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
-                            <div>
-                                <p class="fw-medium text-primary-light mb-1">Mes actual</p>
-                                <h6 class="mb-0">${{number_format($totalCurrentMonth,0)}} USD</h6>
-                            </div>
-                            <div class="w-50-px h-50-px bg-success-main rounded-circle d-flex justify-content-center align-items-center">
-                                <iconify-icon icon="solar:wallet-bold" class="text-white text-2xl mb-0"></iconify-icon>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col">
-                <div class="card shadow-none border bg-gradient-start-5 h-100">
-                <div class="card-body p-20">
-                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
-                        <div>
-                            <p class="fw-medium text-primary-light mb-1">Mejor mes - {{ isset($bestMonth['month']) ? $bestMonth['month'] : 'N/A' }} {{ isset($bestMonth['year']) ? $bestMonth['year'] : '' }}</p>
-                            <h6 class="mb-0">$ {{number_format(@$bestMonth['amount'],0)}} USD</h6>
-                        </div>
-                        <div class="w-50-px h-50-px bg-red rounded-circle d-flex justify-content-center align-items-center">
-                            <iconify-icon icon="fa6-solid:file-invoice-dollar" class="text-white text-2xl mb-0"></iconify-icon>
-                        </div>
-                    </div>
-                </div>
-                </div>
-            </div>
-            <div class="col">
                 <div class="card shadow-none border bg-gradient-start-6 h-100">
                 <div class="card-body p-20">
                     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
@@ -194,18 +157,12 @@
                 </div>
             </div>
         </div>
-    
         <div class="row gy-4">
-            <div class="col-xxl-6 col-xl-12">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <div class="d-flex flex-wrap align-items-center justify-content-between">
-                            <h6 class="text-lg mb-0">Ingresos año actual / anterior</h6>
-                        </div>
-                        <div class="d-flex flex-wrap align-items-center gap-2 mt-8">
-                            <h6 class="mb-0">${{number_format($totalCurrentYear,0)}} USD (año actual)</h6>
-                        </div>
-                        <div id="chart" class="pt-28 apexcharts-tooltip-style-1"></div>
+            <div class="col-xxl-6 col-xl-6">
+                <div class="card h-100 radius-8 border-0 overflow-hidden">
+                    <div class="card-body p-24">
+                        <h6 class="mb-12 fw-semibold text-lg mb-16">Membresías por tipo y fuente</h6>
+                        <div id="membershipsBySourceAndStatusChart" class="membershipsBySourceAndStatusChart"></div>
                     </div>
                 </div>
             </div>
@@ -237,7 +194,7 @@
                 <div class="card h-100 radius-8 border-0 overflow-hidden">
                     <div class="card-body p-24">
                         <div class="d-flex align-items-center flex-wrap gap-2 justify-content-between">
-                            <h6 class="mb-2 fw-bold text-lg">Estados de contactos</h6>
+                            <h6 class="mb-2 fw-bold text-lg">Estados de membresías</h6>
                         </div>
                         <div id="contactStatusDonutChart" class="apexcharts-tooltip-z-none"></div>
                         <ul class="d-flex flex-wrap align-items-center justify-content-between mt-3 gap-3">
@@ -281,10 +238,100 @@
                     </div>
                 </div>
             </div>
+            <!-- Nueva gráfica para el ticket promedio por mes -->
             <div class="col-xxl-12 col-xl-12">
                 <div class="card h-100 radius-8 border-0 overflow-hidden">
                     <div class="card-body p-24">
-                        <h6 class="mb-12 fw-semibold text-lg mb-16">Ingresos diarios de {{ Carbon\Carbon::now()->locale('es')->isoFormat('MMMM YYYY') }}</h6>
+                        <h6 class="mb-12 fw-semibold text-lg mb-16">Evolución del ticket promedio</h6>
+                        <div class="d-flex align-items-center gap-2 mb-20">
+                            <h6 class="fw-semibold mb-0">Periodo: {{$filteredPeriod}}</h6>
+                        </div>
+                        <div id="averageTicketChart" class="averageTicketChart"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-12">
+                <h5>Otros datos de interés</h5><hr>
+            </div>
+            <div class="col">
+                <div class="card shadow-none border bg-gradient-start-4 h-100">
+                    <div class="card-body p-20">
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                            <div>
+                                <p class="fw-medium text-primary-light mb-1">Mes actual</p>
+                                <h6 class="mb-0">${{number_format($totalCurrentMonth,0)}} USD</h6>
+                            </div>
+                            <div class="w-50-px h-50-px bg-success-main rounded-circle d-flex justify-content-center align-items-center">
+                                <iconify-icon icon="solar:wallet-bold" class="text-white text-2xl mb-0"></iconify-icon>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="card shadow-none border bg-gradient-start-2 h-100">
+                <div class="card-body p-20">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                        <div>
+                            <p class="fw-medium text-primary-light mb-1">Ingresos año pasado</p>
+                            <h6 class="mb-0">${{number_format($totalLastYear,0)}} USD</h6>
+                        </div>
+                        <div class="w-50-px h-50-px bg-info rounded-circle d-flex justify-content-center align-items-center">
+                            <iconify-icon icon="fluent:people-20-filled" class="text-white text-2xl mb-0"></iconify-icon>
+                        </div>
+                    </div>
+                </div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="card shadow-none border bg-gradient-start-5 h-100">
+                <div class="card-body p-20">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                        <div>
+                            <p class="fw-medium text-primary-light mb-1">Mejor mes - {{ isset($bestMonth['month']) ? $bestMonth['month'] : 'N/A' }} {{ isset($bestMonth['year']) ? $bestMonth['year'] : '' }}</p>
+                            <h6 class="mb-0">$ {{number_format(@$bestMonth['amount'],0)}} USD</h6>
+                        </div>
+                        <div class="w-50-px h-50-px bg-red rounded-circle d-flex justify-content-center align-items-center">
+                            <iconify-icon icon="fa6-solid:file-invoice-dollar" class="text-white text-2xl mb-0"></iconify-icon>
+                        </div>
+                    </div>
+                </div>
+                </div>
+            </div>
+            <!-- Nueva tarjeta para el ticket promedio -->
+            <div class="col">
+                <div class="card shadow-none border bg-gradient-start-3 h-100">
+                <div class="card-body p-20">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                        <div>
+                            <p class="fw-medium text-primary-light mb-1">Ticket Promedio</p>
+                            <h6 class="mb-0">${{number_format($averageTicket,2)}} USD</h6>
+                            <small class="text-muted">Basado en {{$totalTransactionsInRange}} transacciones</small>
+                        </div>
+                        <div class="w-50-px h-50-px bg-purple rounded-circle d-flex justify-content-center align-items-center">
+                            <iconify-icon icon="mdi:ticket-percent" class="text-white text-2xl mb-0"></iconify-icon>
+                        </div>
+                    </div>
+                </div>
+                </div>
+            </div>
+            <div class="col-xxl-12 col-xl-12">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="d-flex flex-wrap align-items-center justify-content-between">
+                            <h6 class="text-lg mb-0">Ingresos año actual / anterior</h6>
+                        </div>
+                        <div class="d-flex flex-wrap align-items-center gap-2 mt-8">
+                            <h6 class="mb-0">${{number_format($totalCurrentYear,0)}} USD (año actual)</h6>
+                        </div>
+                        <div id="chart" class="pt-28 apexcharts-tooltip-style-1"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xxl-12 col-xl-12">
+                <div class="card h-100 radius-8 border-0 overflow-hidden">
+                    <div class="card-body p-24">
+                        <h6 class="mb-12 fw-semibold text-lg mb-16">Ingresos diarios x día {{ Carbon\Carbon::now()->locale('es')->isoFormat('MMMM YYYY') }} <br><small class="text-muted">Se muestra los ingresos diarios por tipo de pago</small></h6>
                         <div class="d-flex align-items-center gap-2 mb-20">
                             <h6 class="fw-semibold mb-0">${{number_format($totalCurrentMonth,0)}} USD</h6>
                         </div>
@@ -298,8 +345,8 @@
 
 @push('scripts')
 <script>
-    // ================================ Users Overview Donut chart Start ================================ 
-    var options = { 
+    // ================================ Users Overview Donut chart Start ================================
+    var options = {
       series: [{{$stripeCount}}, {{$paypalCount}}],
       colors: ['#487FFF', '#FF9F29'],
       labels: ['Stripe', 'PayPal'],
@@ -307,10 +354,10 @@
           show: false,
       },
       chart: {
-        type: 'donut',    
+        type: 'donut',
         height: 270,
         sparkline: {
-          enabled: true   
+          enabled: true
         },
         margin: {
             top: 0,
@@ -346,7 +393,7 @@
             width: 200,
           },
           legend: {
-            position: 'bottom'
+            position: 'bottom',
           },
         }
       }]
@@ -382,6 +429,9 @@
                 color: "#000",
                 opacity: 0.1,
             },
+            parentHeightOffset: 0,
+            offsetX: 0,
+            offsetY: 0,
         },
         dataLabels: {
             enabled: false
@@ -404,7 +454,7 @@
             },
             y: {
                 formatter: function (value) {
-                    return value;
+                    return "$" + value.toLocaleString('en-US') + " USD";
                 }
             }
         },
@@ -419,11 +469,20 @@
         yaxis: {
             labels: {
                 formatter: function (value) {
-                    return "$" + value + " USD";
+                    return "$" + value.toLocaleString('en-US');
                 },
                 style: {
-                    fontSize: "14px"
+                    fontSize: "13px",
+                    fontWeight: "500"
                 },
+                offsetX: -15,
+                show: false, // Hide the y-axis labels
+            },
+            axisBorder: {
+                show: false
+            },
+            axisTicks: {
+                show: false,
             },
         },
         xaxis: {
@@ -472,6 +531,9 @@
                 show: false
             },
             stacked: true,
+            parentHeightOffset: 0,
+            offsetX: 0,
+            offsetY: 0,
         },
         plotOptions: {
             bar: {
@@ -486,7 +548,7 @@
         },
         fill: {
             type: 'gradient',
-            colors: ['#487FFF', '#FF9F29'],
+            colors: ['#487FFF', '#FF9F29'], // Colors will be applied in order of series
             gradient: {
                 shade: 'light',
                 type: 'vertical',
@@ -498,6 +560,7 @@
                 stops: [0, 100],
             },
         },
+        colors: ['#487FFF', '#FF9F29'], // Explicitly set colors to ensure Stripe is blue and PayPal is orange
         grid: {
             show: true,
             borderColor: '#D1D5DB',
@@ -509,8 +572,19 @@
         yaxis: {
             labels: {
                 formatter: function (value) {
-                    return "$" + value + " USD";
-                }
+                    return "$" + value;
+                },
+                style: {
+                    fontSize: "12px"
+                },
+                offsetX: -10,
+                show: false, // Hide the y-axis labels
+            },
+            axisBorder: {
+                show: false
+            },
+            axisTicks: {
+                show: false,
             },
         },
         legend: {
@@ -534,7 +608,7 @@
     dailyChart.render();
 
     // ================================ Contact Status Donut chart Start ================================
-    var contactStatusOptions = { 
+    var contactStatusOptions = {
       series: [
         {{$activeSubscriptions}}, 
         {{$canceledSubscriptions}}, 
@@ -549,10 +623,10 @@
           show: false,
       },
       chart: {
-        type: 'donut',    
+        type: 'donut',
         height: 270,
         sparkline: {
-          enabled: true   
+          enabled: true
         },
         margin: {
             top: 0,
@@ -596,5 +670,219 @@
     var contactStatusChart = new ApexCharts(document.querySelector("#contactStatusDonutChart"), contactStatusOptions);
     contactStatusChart.render();
     // ================================ Contact Status Donut chart End ================================
+    
+    // ================================ Memberships by Source and Status Chart Start ================================
+    var membershipsBySourceOptions = {
+        series: {!! json_encode($membershipBarSeries) !!},
+        chart: {
+            type: 'bar',
+            height: 350,
+            stacked: true,
+            toolbar: {
+                show: true,
+                tools: {
+                    download: true,
+                    selection: false,
+                    zoom: false,
+                    zoomin: false,
+                    zoomout: false,
+                    pan: false,
+                    reset: false,
+                }
+            },
+            parentHeightOffset: 0,
+            offsetX: 0,
+            offsetY: 0,
+        },
+        plotOptions: {
+            bar: {
+                horizontal: false,
+                columnWidth: '60%',
+                borderRadius: 4,
+                dataLabels: {
+                    total: {
+                        enabled: true,
+                        style: {
+                            fontSize: '13px',
+                            fontWeight: 900
+                        }
+                    }
+                }
+            }
+        },
+        dataLabels: {
+            enabled: false
+        },
+        xaxis: {
+            categories: {!! json_encode(array_map(function($status) use ($statusesTranslated) {
+                return $statusesTranslated[$status] ?? ucfirst($status);
+            }, $statuses)) !!},
+            labels: {
+                style: {
+                    fontSize: '12px'
+                }
+            }
+        },
+        yaxis: {
+            title: {
+                text: 'Cantidad de membresías',
+                offsetX: -10,
+            },
+            labels: {
+                style: {
+                    fontSize: '12px'
+                },
+                offsetX: -10,
+            },
+            axisBorder: {
+                show: false
+            },
+            axisTicks: {
+                show: false,
+            },
+        },
+        tooltip: {
+            y: {
+                formatter: function (val) {
+                    return val + " membresías";
+                }
+            }
+        },
+        fill: {
+            opacity: 1
+        },
+        colors: ['#487FFF', '#28a745', '#17a2b8', '#6c757d'],
+        legend: {
+            position: 'top',
+            horizontalAlign: 'center',
+            fontSize: '13px',
+            markers: {
+                width: 10,
+                height: 10,
+                radius: 4
+            }
+        }
+    };
+    var membershipsBySourceChart = new ApexCharts(document.querySelector("#membershipsBySourceAndStatusChart"), membershipsBySourceOptions);
+    membershipsBySourceChart.render();
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        const filterForm = document.querySelector('form[action="{{ route("admin.index") }}"]');
+        const submitButton = document.getElementById('submit-filter-type');
+        const normalState = submitButton.querySelector('.normal-state');
+        const loadingState = submitButton.querySelector('.loading-state');
+        
+        filterForm.addEventListener('submit', function() {
+            // Show loading state
+            normalState.classList.add('d-none');
+            loadingState.classList.remove('d-none');
+            
+            // Disable the button to prevent multiple submissions
+            submitButton.disabled = true;
+        });
+    });
+
+    // Nueva gráfica de ticket promedio
+    var averageTicketOptions = {
+        series: [{
+            name: "Ticket Promedio",
+            data: {!! json_encode(array_map(function($item) { return round($item['average'], 2); }, array_reverse($averageTicketByMonth))) !!}
+        }, {
+            name: "Número de Transacciones",
+            data: {!! json_encode(array_map(function($item) { return $item['count']; }, array_reverse($averageTicketByMonth))) !!}
+        }],
+        chart: {
+            type: 'line',
+            height: 350,
+            toolbar: {
+                show: false,
+                tools: {
+                    download: true,
+                    selection: false,
+                    zoom: false,
+                    zoomin: false,
+                    zoomout: false,
+                    pan: false,
+                    reset: false,
+                }
+            },
+            parentHeightOffset: 0,
+            offsetX: 0,
+            offsetY: 0,
+        },
+        stroke: {
+            width: [3, 1],
+            curve: 'smooth',
+            dashArray: [0, 5]
+        },
+        colors: ['#487FFF', '#28a745'],
+        markers: {
+            size: 5,
+            hover: {
+                size: 8
+            }
+        },
+        xaxis: {
+            categories: {!! json_encode(array_map(function($item) { return $item['month']; }, array_reverse($averageTicketByMonth))) !!}
+        },
+        yaxis: [
+            {
+                labels: {
+                    show: false,
+                },
+                axisBorder: {
+                    show: false
+                },
+                axisTicks: {
+                    show: false,
+                },
+                seriesName: "Ticket Promedio"
+            },
+            {
+                opposite: true,
+                title: {
+                    text: 'Número de transacciones',
+                    offsetX: 10,
+                },
+                min: 0,
+                labels: {
+                    show: false,  // Hide the labels on the second y-axis
+                },
+                axisBorder: {
+                    show: false
+                },
+                axisTicks: {
+                    show: false,
+                },
+                seriesName: "Número de Transacciones"
+            }
+        ],
+        tooltip: {
+            shared: true,
+            intersect: false,
+            y: [{
+                formatter: function(y) {
+                    if(typeof y !== "undefined") {
+                        return "$" + y.toFixed(2) + " USD";
+                    }
+                    return y;
+                }
+            }, {
+                formatter: function(y) {
+                    if(typeof y !== "undefined") {
+                        return y.toFixed(0) + " transacciones";
+                    }
+                    return y;
+                }
+            }]
+        },
+        legend: {
+            position: 'top',
+            horizontalAlign: 'right'
+        }
+    };
+    
+    var averageTicketChart = new ApexCharts(document.querySelector("#averageTicketChart"), averageTicketOptions);
+    averageTicketChart.render();
 </script>
 @endpush

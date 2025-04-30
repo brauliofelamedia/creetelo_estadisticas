@@ -340,6 +340,108 @@ class AdminController extends Controller
         // Check if activeMemberships is being used in the view
         $activeMemberships = $activeSubscriptions; // Assuming this is what was intended
         
+        // Nueva lógica para agrupar membresías por status y source_type
+        if ($request->has('monthYearStart') || $request->has('monthYearEnd')) {
+            // Membresías por tipo de fuente y estado dentro del rango de fechas
+            $membershipsBySourceAndStatus = DB::table('contacts')
+                ->join('subscriptions', 'contacts.id', '=', 'subscriptions.contact_id')
+                ->whereBetween('contacts.date_added', [$startDate, $endDate])
+                ->select('subscriptions.status', 'subscriptions.source_type', DB::raw('count(*) as total'))
+                ->groupBy('subscriptions.status', 'subscriptions.source_type')
+                ->get();
+        } else {
+            // Todas las membresías agrupadas por tipo de fuente y estado
+            $membershipsBySourceAndStatus = DB::table('contacts')
+                ->join('subscriptions', 'contacts.id', '=', 'subscriptions.contact_id')
+                ->select('subscriptions.status', 'subscriptions.source_type', DB::raw('count(*) as total'))
+                ->groupBy('subscriptions.status', 'subscriptions.source_type')
+                ->get();
+        }
+        
+        // Preparar datos para la gráfica
+        $sourceTypes = ['payment_link', 'funnel', 'membership', 'other'];
+        $statuses = ['active', 'canceled', 'trialing', 'paused', 'past_due', 'incomplete_expired'];
+        
+        // Inicializar array para datos de la gráfica
+        $membershipChartData = [];
+        foreach ($statuses as $status) {
+            $membershipChartData[$status] = [];
+            foreach ($sourceTypes as $sourceType) {
+                $membershipChartData[$status][$sourceType] = 0;
+            }
+        }
+        
+        // Poblar datos de la gráfica
+        foreach ($membershipsBySourceAndStatus as $item) {
+            $status = $item->status;
+            $sourceType = $item->source_type ?? 'other';
+            
+            // Si el source_type no está en nuestra lista, lo consideramos como "other"
+            if (!in_array($sourceType, $sourceTypes)) {
+                $sourceType = 'other';
+            }
+            
+            if (isset($membershipChartData[$status][$sourceType])) {
+                $membershipChartData[$status][$sourceType] = $item->total;
+            }
+        }
+        
+        // Preparar series para el gráfico de barras apiladas
+        $membershipBarSeries = [];
+        foreach ($sourceTypes as $sourceType) {
+            $data = [];
+            foreach ($statuses as $status) {
+                $data[] = $membershipChartData[$status][$sourceType] ?? 0;
+            }
+            
+            $membershipBarSeries[] = [
+                'name' => ucfirst($sourceType),
+                'data' => $data
+            ];
+        }
+
+        // Crear traducción de estados para la gráfica
+        $statusesTranslated = [
+            'active' => 'Activo',
+            'canceled' => 'Cancelado',
+            'trialing' => 'En prueba',
+            'paused' => 'Pausado',
+            'past_due' => 'Vencido',
+            'incomplete_expired' => 'Expirado'
+        ];
+
+        // Calcular el ticket promedio por mes dentro del rango de fecha seleccionado
+        $averageTicketByMonth = collect($transactionsSucceded)
+            ->filter(function ($item) use ($startDate, $endDate) {
+                $itemDate = Carbon::parse($item->create_time);
+                return $itemDate->between($startDate, $endDate);
+            })
+            ->groupBy(function ($item) {
+                return Carbon::parse($item->create_time)->format('Y-m');
+            })
+            ->map(function ($items) {
+                $totalAmount = $items->sum('amount');
+                $totalTransactions = $items->count();
+                $averageTicket = $totalTransactions > 0 ? $totalAmount / $totalTransactions : 0;
+                
+                // Correctly parse the datetime string
+                $date = Carbon::parse($items->first()->create_time);
+                $spanishMonth = $this->monthSpanish($date->month);
+                
+                return [
+                    'month' => $spanishMonth . ' ' . $date->year,
+                    'average' => $averageTicket,
+                    'count' => $totalTransactions
+                ];
+            })
+            ->values()
+            ->toArray();
+            
+        // Ticket promedio global en el rango seleccionado
+        $totalAmountInRange = $filteredTransactions->sum('amount');
+        $totalTransactionsInRange = $filteredTransactions->count();
+        $averageTicket = $totalTransactionsInRange > 0 ? $totalAmountInRange / $totalTransactionsInRange : 0;
+
         return view('admin.index', compact(
             'stripeCount', 'paypalCount', 'paypalTotal', 'stripeTotal',
             'currentContacts', 'currentUsers', 'userDifference', 'latestUsers',
@@ -349,7 +451,9 @@ class AdminController extends Controller
             'totalCurrentPeriod', 'cancellationRate', 'cancelledCount', 'totalTransactions',
             'activeSubscriptions', 'canceledSubscriptions', 'trialingSubscriptions',
             'pausedSubscriptions', 'pastDueSubscriptions', 'incompleteExpiredSubscriptions',
-            'dailyStripeAmounts', 'dailyPaypalAmounts', 'activeMemberships', 'debugInfo'
+            'dailyStripeAmounts', 'dailyPaypalAmounts', 'activeMemberships', 'debugInfo',
+            'membershipBarSeries', 'statuses', 'statusesTranslated',
+            'averageTicketByMonth', 'averageTicket', 'totalTransactionsInRange'
         ));
     }
     

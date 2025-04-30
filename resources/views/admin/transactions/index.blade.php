@@ -212,13 +212,13 @@
                                 <td class="d-none d-md-table-cell">{{ \Carbon\Carbon::parse($transaction->create_time)->format('d-m-Y') }}</td>
                                 <td>
                                     <div class="d-flex gap-2">
-                                        @if($transaction->contact->phone)
+                                        @if($transaction->contact && $transaction->contact->phone)
                                             <a href="https://api.whatsapp.com/send?phone={{ preg_replace('/[^0-9]/', '', $transaction->contact->phone) }}" 
                                                target="_blank" class="btn btn-sm btn-success" title="Contactar por WhatsApp">
                                                 <iconify-icon icon="bi:whatsapp"></iconify-icon>
                                             </a>
                                         @endif
-                                        @if($transaction->contact->email)
+                                        @if($transaction->contact && $transaction->contact->email)
                                             <a target="_blank" href="mailto:{{ $transaction->contact->email }}" 
                                                class="btn btn-sm btn-primary" title="Enviar correo">
                                                 <iconify-icon icon="mdi:email"></iconify-icon>
