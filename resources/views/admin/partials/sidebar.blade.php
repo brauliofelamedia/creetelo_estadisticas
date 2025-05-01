@@ -4,9 +4,9 @@
     </button>
     <div>
         <a href="{{route('admin.index')}}" class="sidebar-logo">
-            <img src="{{asset('storage/'.$config_global->logo_light)}}" alt="site logo" class="light-logo" style="max-width: 180px;" title="{{$config_global->site_name}}">
-            <img src="{{asset('storage/'.$config_global->logo_dark)}}" alt="site logo" class="dark-logo" style="max-width: 180px;" title="{{$config_global->site_name}}">
-            <img src="{{asset('storage/'.$config_global->favicon)}}" alt="site logo" class="logo-icon" title="{{$config_global->site_name}}">
+            <img src="{{asset('assets/images/logo.webp')}}" alt="site logo" class="light-logo" style="max-width: 180px;" title="{{$config_global->site_name}}">
+            <img src="{{asset('assets/images/logo.webp')}}" alt="site logo" class="dark-logo" style="max-width: 180px;" title="{{$config_global->site_name}}">
+            <img src="{{asset('assets/images/logo.webp')}}" alt="site logo" class="logo-icon" title="{{$config_global->site_name}}">
         </a>
     </div>
     <div class="sidebar-menu-area">
