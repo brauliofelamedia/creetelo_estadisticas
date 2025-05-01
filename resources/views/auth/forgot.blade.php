@@ -8,8 +8,8 @@
         <div class="auth-right py-32 px-24 d-flex flex-column justify-content-center">
             <div class="max-w-464-px mx-auto w-100">
                 <div>
-                    <a href="{{route('login')}}" class="mb-40 max-w-290-px">
-                        <img src="{{asset('storage/'.$config_global->logo_light)}}" alt="{{$config_global->site_name}}">
+                    <a href="{{route('login')}}" class="mb-40 max-w-290-px text-center mx-auto d-block">
+                        <img src="{{asset('assets/images/logo.webp')}}" alt="{{$config_global->site_name}}" style="max-width:80%;">
                     </a>
                     <h5 class="mb-12">Recuperar contraseña</h5>
                     <p class="mb-32 text-secondary-light text-lg">Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña</p>
