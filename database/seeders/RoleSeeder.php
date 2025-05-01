@@ -14,15 +14,18 @@ class RoleSeeder extends Seeder
         // Crear roles y asignar permisos
         $superAdmin = Role::create([
             'uuid' => Str::uuid(),
-            'name' => 'super_admin'
+            'name' => 'super_admin',
+            'guard_name' => 'web'
         ]);
         $admin = Role::create([
             'uuid' => Str::uuid(),
-            'name' => 'admin'
+            'name' => 'admin',
+            'guard_name' => 'web'
         ]);
         $user = Role::create([
             'uuid' => Str::uuid(),
-            'name' => 'user'
+            'name' => 'user',
+            'guard_name' => 'web'
         ]);
     }
 }
