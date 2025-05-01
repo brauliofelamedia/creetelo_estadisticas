@@ -20,9 +20,9 @@ class UserController extends Controller
         return view('admin.user.index', compact('users'));
     }
 
-    public function edit($uuid)
+    public function edit($id)
     {
-        $user = User::where('uuid', $uuid)->first();
+        $user = User::where('id', $id)->first();
         $roles = Role::all();
         return view('admin.user.edit', compact('roles','user'));
     }

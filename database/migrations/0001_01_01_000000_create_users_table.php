@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
-            $table->uuid('uuid')->primary();
+            $table->id(); // Changed from uuid to standard auto-incrementing id
             $table->string('name');
             $table->string('last_name')->nullable();
             $table->string('email')->unique();
@@ -42,8 +42,8 @@ return new class extends Migration
         });
 
         Schema::create('sessions', function (Blueprint $table) {
-            $table->uuid('id')->primary();
-            $table->foreignId('user_id')->nullable()->index();
+            $table->string('id')->primary();
+            $table->foreignId('user_id')->nullable()->index(); // This already uses foreignId which is correct
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();
             $table->longText('payload');

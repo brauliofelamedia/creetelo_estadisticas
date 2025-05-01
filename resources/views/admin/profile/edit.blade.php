@@ -87,7 +87,7 @@
                     <div class="tab-content" id="pills-tabContent">
                         <div class="tab-pane fade show active" id="pills-edit-profile" role="tabpanel" aria-labelledby="pills-edit-profile-tab" tabindex="0">
                             <!-- Upload Image Start -->
-                            <form action="{{ route('profile.update',$user->uuid) }}" method="POST" enctype="multipart/form-data">
+                            <form action="{{ route('profile.update',$user->id) }}" method="POST" enctype="multipart/form-data">
                                 @csrf
                                 @method('PUT')
                                 <div class="mb-24 mt-16">
@@ -150,7 +150,7 @@
                         <div class="tab-pane fade" id="pills-change-passwork" role="tabpanel" aria-labelledby="pills-change-passwork-tab" tabindex="0">
                             <form action="{{ route('profile.update.password') }}" method="POST">
                                 @csrf
-                                <input type="hidden" name="id" value="{{ $user->uuid }}">
+                                <input type="hidden" name="id" value="{{ $user->id }}">
                                 <div class="mb-20">
                                     <label for="current-password" class="form-label fw-semibold text-primary-light text-sm mb-8">Contraseña actual <span class="text-danger-600">*</span></label>
                                     <div class="position-relative">

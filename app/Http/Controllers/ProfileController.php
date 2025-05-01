@@ -15,12 +15,12 @@ class ProfileController extends Controller
         return view('admin.profile.edit', compact('user'));
     }
 
-    public function update(Request $request, string $uuid)
+    public function update(Request $request, string $id)
     {
         //dd($request->all());
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users,email,'.$uuid.',uuid',
+            'email' => 'required|string|email|max:255|unique:users,email,'.$id.',id',
             'old_password' => 'nullable|string|min:8',
             'password' => 'nullable|string|min:8',
             'bio' => 'nullable|string|max:1000',
@@ -28,7 +28,7 @@ class ProfileController extends Controller
             'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
         ]);
 
-        $user = User::where('uuid',$uuid)->first();
+        $user = User::where('id',$id)->first();
         $user->name = $request->name;
         $user->email = $request->email;
         $user->bio = $request->bio;
@@ -41,7 +41,7 @@ class ProfileController extends Controller
 
         $user->save();
 
-        return redirect()->route('profile.edit', $uuid)->with('success', 'Se ha actualizado correctamente el perfil.');
+        return redirect()->route('profile.edit', $id)->with('success', 'Se ha actualizado correctamente el perfil.');
     }
 
     public function updatePassword(Request $request)
@@ -57,7 +57,7 @@ class ProfileController extends Controller
             }
         }
         $user->save();
-        return redirect()->route('profile.edit', $user->uuid)->with('success', 'Se ha actualizado correctamente la contraseña.');
+        return redirect()->route('profile.edit', $user->id)->with('success', 'Se ha actualizado correctamente la contraseña.');
     }
 
     public function destroy(string $id)

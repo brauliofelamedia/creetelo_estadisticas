@@ -147,7 +147,7 @@
                         <div>
                             <p class="fw-medium text-primary-light mb-1">Tasa de cancelación</p>
                             <h6 class="mb-0">{{number_format($cancellationRate, 1)}}%</h6>
-                            <small class="text-muted">{{$cancelledCount}} de {{$totalTransactions}}</small>
+                            <small style="display: none;" class="text-muted">{{$cancelledCount}} de {{$totalTransactions}}</small>
                         </div>
                         <div class="w-50-px h-50-px bg-orange rounded-circle d-flex justify-content-center align-items-center">
                             <iconify-icon icon="mdi:cancel-bold" class="text-white text-2xl mb-0"></iconify-icon>

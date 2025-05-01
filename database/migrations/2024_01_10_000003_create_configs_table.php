@@ -9,7 +9,7 @@ return new class extends Migration
     public function up()
     {
         Schema::create('configs', function (Blueprint $table) {
-            $table->uuid('id')->primary();
+            $table->id(); // Changed from uuid to standard auto-incrementing ID
             $table->string('site_name');
             $table->string('primary_color')->default('#E60000');
             $table->string('secondary_color')->default('#000000');

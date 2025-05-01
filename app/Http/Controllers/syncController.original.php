@@ -44,15 +44,17 @@ class SyncController extends Controller
         $transactions = new Transactions();
         $transactions = $transactions->get($offset);
         $data = collect($transactions->getData());
-        
-        // Get all transaction IDs in this batch for more efficient checking
-        $transactionIds = collect($data['data'])->pluck('_id')->filter()->toArray();
-        $existingIds = Transaction::whereIn('_id', $transactionIds)->pluck('_id')->toArray();
-        $existingIdsSet = array_flip($existingIds); // Convert to hash map for O(1) lookups
 
         foreach($data['data'] as $item){
-            // Skip quickly using hash map lookup instead of database query for each item
-            if (isset($existingIdsSet[$item->_id])) {
+            /*if ($item->entitySourceType != 'membership') {
+                continue;
+            }
+
+            if (!in_array($item->amount, [39, 390])) {
+                continue;
+            }*/
+
+            if (Transaction::where('_id', $item->_id)->exists()) {
                 continue;
             }
             
@@ -133,39 +135,26 @@ class SyncController extends Controller
             if (!isset($data['data'])) {
                 throw new \Exception('Formato de datos inválido');
             }
-            
-            // Get all subscription IDs in this batch for efficient checking
-            $subscriptionIds = collect($data['data'])->pluck('_id')->filter()->toArray();
-            $existingSubIds = Subscription::whereIn('_id', $subscriptionIds)->pluck('_id')->toArray();
-            $existingSubIdsSet = array_flip($existingSubIds);
-            
-            // Collect contact IDs for contacts we'll need
-            $contactIds = collect($data['data'])->pluck('contactId')->filter()->unique()->toArray();
-            $existingContacts = Contact::whereIn('contact_id', $contactIds)
-                ->get(['id', 'contact_id'])
-                ->keyBy('contact_id');
 
             foreach ($data['data'] as $item) {
-                // Skip if subscription already exists
-                if (isset($existingSubIdsSet[$item->_id])) {
+                /*if ($item->entitySourceType != 'membership') {
+                    continue;
+                }*/
+                if (Subscription::where('_id', $item->_id)->exists()) {
                     continue;
                 }
+                /*if (!in_array($item->amount, [39, 390])) {
+                    continue;
+                }*/
 
                 // Check if contact exists, if not create new one
-                $contact = null;
-                if (!empty($item->contactId)) {
-                    $contact = $existingContacts->get($item->contactId);
-                    
-                    if (!$contact) {
-                        $contact = new Contact();
-                        $contact->contact_id = $item->contactId ?? '';
-                        $contact->email = $item->contactEmail ?? '';
-                        $contact->phone = $item->contactPhone ?? '';
-                        $contact->save();
-                        
-                        // Add to our cache to avoid duplicate creation
-                        $existingContacts->put($item->contactId, $contact);
-                    }
+                $contact = Contact::where('contact_id', $item->contactId)->first();
+                if(!$contact){
+                    $contact = new Contact();
+                    $contact->contact_id = $item->contactId ?? '';
+                    $contact->email = $item->contactEmail ?? '';
+                    $contact->phone = $item->contactPhone ?? '';
+                    $contact->save();
                 }
 
                 $sub = new Subscription();
@@ -184,7 +173,7 @@ class SyncController extends Controller
                 $sub->source_type = $item->entitySourceType ?? '';
                 $sub->subscription_id = $item->subscriptionId ?? '';
                 $sub->create_time = Carbon::parse($item->createdAt) ?? '';
-                $sub->contact_id = $contact ? $contact->id : null;
+                $sub->contact_id = $contact->id ?? '';
                 $sub->save();
             }
 
@@ -232,20 +221,8 @@ class SyncController extends Controller
         // Get the start time to measure performance
         $startTime = microtime(true);
         
-        // Define a threshold for recent updates (e.g., last 24 hours)
-        $recentThreshold = Carbon::now()->subHours(24);
-        
-        // Get contacts in batch, excluding recently updated ones
-        $contacts = Contact::skip($offset)
-                          ->take($limit)
-                          ->where(function($query) use ($recentThreshold) {
-                              $query->whereNull('date_update')
-                                   ->orWhere('date_update', '<', $recentThreshold);
-                          })
-                          ->get();
-        
-        // Count total contacts that were skipped due to recent updates
-        $skippedCount = $limit - $contacts->count();
+        // Get contacts in batch
+        $contacts = Contact::skip($offset)->take($limit)->get();
         
         // If no contacts to process at this offset, complete the process
         if ($contacts->isEmpty()) {
@@ -261,72 +238,52 @@ class SyncController extends Controller
         $updatedCount = 0;
         $contactsService = new Contacts();
         
-        // Get all contact IDs for batch processing
-        $contactIds = $contacts->pluck('contact_id')->filter()->toArray();
-        $batchSize = 10; // Process in smaller batches to avoid API limits
-        
-        // Process contacts in smaller batches
-        foreach(array_chunk($contactIds, $batchSize) as $contactIdsBatch) {
-            foreach($contacts->whereIn('contact_id', $contactIdsBatch) as $contact) {
-                try {
-                    // Skip if contact_id is empty
-                    if (empty($contact->contact_id)) {
-                        Log::warning('Contact without contact_id found, skipping.', ['contact_id' => $contact->id]);
-                        continue;
-                    }
-                    
-                    $contactData = $contactsService->get($contact->contact_id);
-                    
-                    // Skip if no contacts returned from API
-                    if (empty($contactData['contacts'])) {
-                        Log::warning('No contact data returned from API', ['contact_id' => $contact->contact_id]);
-                        continue;
-                    }
-                    
-                    $data = collect($contactData['contacts']);
-                    
-                    // Check if API data is newer than our last update
-                    if (isset($data[0]['dateUpdated']) && $contact->date_update) {
-                        $apiUpdateDate = Carbon::parse($data[0]['dateUpdated']);
-                        if ($apiUpdateDate <= $contact->date_update) {
-                            // Skip if our data is already up to date
-                            continue;
-                        }
-                    }
-                    
-                    $countryName = !empty($data[0]['country']) ? Country::where('iso2', $data[0]['country'])->value('name') : null;
-                    $contact->country = $countryName ?? $data[0]['country'] ?? null;
-                    $contact->source = $data[0]['source'] ?? null;
-                    $contact->type = $data[0]['type'] ?? null;
-                    $contact->address = $data[0]['address'] ?? null;
-                    $contact->tags = $data[0]['tags'] ?? null;
-                    $contact->location_id = $data[0]['locationId'] ?? null;
-                    $contact->date_added = isset($data[0]['dateAdded']) ? Carbon::parse($data[0]['dateAdded']) : null;
-                    $contact->date_update = isset($data[0]['dateUpdated']) ? Carbon::parse($data[0]['dateUpdated']) : null;
-                    $contact->first_name = $data[0]['firstNameLowerCase'] ?? null;
-                    $contact->last_name = $data[0]['lastNameLowerCase'] ?? null;
-                    $contact->email = $data[0]['email'] ?? null;
-                    $contact->website = $data[0]['website'] ?? null;
-                    $contact->dnd = $data[0]['dnd'] ?? null;
-                    $contact->state = $data[0]['state'] ?? null;
-                    $contact->city = $data[0]['city'] ?? null;
-                    $contact->company_name = $data[0]['companyName'] ?? null;
-                    $contact->date_of_birth = isset($data[0]['dateOfBirth']) ? Carbon::parse($data[0]['dateOfBirth']) : null;
-                    $contact->postal_code = $data[0]['postalCode'] ?? null;
-                    $contact->business_name = $data[0]['businessName'] ?? null;
-                    $contact->save();
-                    
-                    $updatedCount++;
-                } catch (\Exception $e) {
-                    Log::error('Error updating contact: ' . $e->getMessage(), [
-                        'contact_id' => $contact->contact_id,
-                        'exception' => $e->getTraceAsString()
-                    ]);
+        foreach($contacts as $contact) {
+            try {
+                // Skip if contact_id is empty
+                if (empty($contact->contact_id)) {
+                    Log::warning('Contact without contact_id found, skipping.', ['contact_id' => $contact->id]);
+                    continue;
                 }
-            }
-            // Add small delay between batches to prevent API rate limits
-            if (count($contactIdsBatch) >= 5) {
-                usleep(200000); // 200ms pause between batches
+                
+                $contactData = $contactsService->get($contact->contact_id);
+                
+                // Skip if no contacts returned from API
+                if (empty($contactData['contacts'])) {
+                    Log::warning('No contact data returned from API', ['contact_id' => $contact->contact_id]);
+                    continue;
+                }
+                
+                $data = collect($contactData['contacts']);
+                
+                $countryName = !empty($data[0]['country']) ? Country::where('iso2', $data[0]['country'])->value('name') : null;
+                $contact->country = $countryName ?? $data[0]['country'] ?? null;
+                $contact->source = $data[0]['source'] ?? null;
+                $contact->type = $data[0]['type'] ?? null;
+                $contact->address = $data[0]['address'] ?? null;
+                $contact->tags = $data[0]['tags'] ?? null;
+                $contact->location_id = $data[0]['locationId'] ?? null;
+                $contact->date_added = isset($data[0]['dateAdded']) ? Carbon::parse($data[0]['dateAdded']) : null;
+                $contact->date_update = isset($data[0]['dateUpdated']) ? Carbon::parse($data[0]['dateUpdated']) : null;
+                $contact->first_name = $data[0]['firstNameLowerCase'] ?? null;
+                $contact->last_name = $data[0]['lastNameLowerCase'] ?? null;
+                $contact->email = $data[0]['email'] ?? null;
+                $contact->website = $data[0]['website'] ?? null;
+                $contact->dnd = $data[0]['dnd'] ?? null;
+                $contact->state = $data[0]['state'] ?? null;
+                $contact->city = $data[0]['city'] ?? null;
+                $contact->company_name = $data[0]['companyName'] ?? null;
+                $contact->date_of_birth = isset($data[0]['dateOfBirth']) ? Carbon::parse($data[0]['dateOfBirth']) : null;
+                $contact->postal_code = $data[0]['postalCode'] ?? null;
+                $contact->business_name = $data[0]['businessName'] ?? null;
+                $contact->save();
+                
+                $updatedCount++;
+            } catch (\Exception $e) {
+                Log::error('Error updating contact: ' . $e->getMessage(), [
+                    'contact_id' => $contact->contact_id,
+                    'exception' => $e->getTraceAsString()
+                ]);
             }
         }
         
@@ -334,7 +291,6 @@ class SyncController extends Controller
         $processingTime = round(microtime(true) - $startTime, 2);
         Log::info("Processed batch of $updatedCount contacts in $processingTime seconds", [
             'batch_size' => $contacts->count(),
-            'skipped' => $skippedCount,
             'offset' => $offset,
             'processing_time' => $processingTime
         ]);
@@ -356,7 +312,6 @@ class SyncController extends Controller
             'isDone' => $isDone,
             'nextOffset' => $offset + $limit,
             'processed' => $updatedCount,
-            'skipped' => $skippedCount,
             'processing_time' => $processingTime
         ]);
     }
