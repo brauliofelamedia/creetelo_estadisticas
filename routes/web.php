@@ -115,6 +115,20 @@ Route::middleware('auth')->prefix('dashboard')->group(function () {
         Route::post('process-contacts', [SyncController::class, 'processContacts'])->name('process.contacts');
         Route::get('start', [SyncController::class, 'startSync'])->name('sync.start');
     });
+
+    // Storage link route inside auth middleware
+    Route::get('/storage-link', function() {
+        Artisan::call('storage:link');
+        
+        return "El enlace simbólico de almacenamiento ha sido creado correctamente.";
+    })->name('storage.link');
+
+    // Migrations route inside auth middleware
+    Route::get('/run-migrations', function() {
+        Artisan::call('migrate');
+        
+        return "Las migraciones se han ejecutado correctamente.";
+    })->name('run.migrations');
 });
 
 // Add the missing route for filtering sources by type
@@ -122,6 +136,16 @@ Route::get('/admin/filters/get-sources-by-type', [App\Http\Controllers\FilterCon
 
 // Add this route if it doesn't exist
 Route::get('/transactions/export', [TransactionController::class, 'export'])->name('transactions.export');
+
+// New route to clear cache without middleware (keeping this outside auth as requested)
+Route::get('/clear-cache', function() {
+    Artisan::call('cache:clear');
+    Artisan::call('config:clear');
+    Artisan::call('view:clear');
+    Artisan::call('route:clear');
+    
+    return "Toda la caché ha sido eliminada correctamente.";
+})->name('clear.cache');
 
 
 
