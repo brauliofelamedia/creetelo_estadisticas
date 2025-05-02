@@ -18,9 +18,6 @@ return Application::configure(basePath: dirname(__DIR__))
             CheckToken::class,
             //ChargeDataAPI::class,
         ]);
-        $middleware->api([
-            EnsureFrontendRequestsAreStateful::class,
-        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
