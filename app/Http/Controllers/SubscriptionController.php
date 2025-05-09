@@ -37,8 +37,8 @@ class SubscriptionController extends Controller
         );
 
         $otherSources = array_diff($allSources, $prioritySources);
-        // Changed to only use prioritySources as default instead of merging with otherSources
-        $source = $request->input('source', $prioritySources);
+        // Changed to use all sources as default
+        $source = $request->input('source', $allSources);
         $source_type = $request->input('source_type', ['funnel','membership','payment_link']);
         $provider_type = $request->input('provider_type', ['stripe', 'paypal']);
         $selectedTags = $request->input('tags', []);
@@ -90,10 +90,12 @@ class SubscriptionController extends Controller
         }
 
         if ($startDate && $endDate) {
-            $query->whereBetween('create_time', [
-                Carbon::parse($startDate)->startOfDay(),
-                Carbon::parse($endDate)->endOfDay()
-            ]);
+            $query->where(function($q) use ($startDate, $endDate) {
+                $q->whereBetween('start_date', [
+                    Carbon::parse($startDate)->startOfDay(),
+                    Carbon::parse($endDate)->endOfDay()
+                ]);
+            });
         }
         
         // Filter by tags
@@ -187,8 +189,8 @@ class SubscriptionController extends Controller
             'endDate',
             'totalAmount',
             'noResultsMessage',
-            'prioritySources', // Added prioritySources to view
-            'otherSources'     // Added otherSources to view
+            'prioritySources',
+            'otherSources'
         ));
     }
 
@@ -212,7 +214,7 @@ class SubscriptionController extends Controller
             $numberPage = ceil($subscriptionTotal / 100);
 
             // Primero recolectamos todos los datos
-            for ($i = 0; $i <= $numberPage; $i++) {
+            for ($i = 0; $i <= $umberPage; $i++) {
                 $response = $transactions->get($i);
                 $dataTotal = json_decode(json_encode(response()->json(['data' => $response])->getData()), true);
                 $allSubscriptions = array_merge($allSubscriptions, $dataTotal['data']['original']['data']);
@@ -240,7 +242,7 @@ class SubscriptionController extends Controller
                         'providerType' => $data['paymentProviderType'] ?? '',
                         'sourceType' => $data['entitySourceType'] ?? '',
                         'subscription_id' => $data['subscriptionId'] ?? '',
-                        'create_time' => Carbon::parse($data['createdAt'] ?? null)
+                        'start_date' => Carbon::parse($data['createdAt'] ?? null)
                     ]);
 
                     if ($subscription->save()) {
@@ -364,10 +366,15 @@ class SubscriptionController extends Controller
         }
 
         if ($startDate && $endDate) {
-            $query->whereBetween('create_time', [
-                Carbon::parse($startDate)->startOfDay(),
-                Carbon::parse($endDate)->endOfDay()
-            ]);
+            $query->where(function($q) use ($startDate, $endDate) {
+                $q->whereBetween('start_date', [
+                    Carbon::parse($startDate)->startOfDay(),
+                    Carbon::parse($endDate)->endOfDay()
+                ])->orWhereBetween('cancelled_at', [
+                    Carbon::parse($startDate)->startOfDay(),
+                    Carbon::parse($endDate)->endOfDay()
+                ]);
+            });
         }
         
         // Filter by tags

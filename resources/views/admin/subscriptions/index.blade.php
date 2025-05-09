@@ -192,7 +192,7 @@
                             <th>Monto</th>
                             <th class="d-none d-md-table-cell">Tipo</th>
                             <th>Membresía</th>
-                            <th>Estatus</th>
+                            <th>Fecha</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -209,7 +209,7 @@
                             @foreach($subscriptions as $subscription)
                             <tr>
                                 <td class="d-none d-md-table-cell">{{ $subscription->id }}</td>
-                                <td>{{ ucfirst($subscription->contact->fullname) }}</td>
+                                <td>{{ $subscription->contact->fullname }}</td>
                                 <td>{{ $subscription->provider_type }}</td>
                                 <td>$ {{ number_format($subscription->amount) }} USD</td>
                                 <td>{{ str_replace('- Payment', '', $subscription->entity_resource_name) }}</td>
@@ -257,11 +257,13 @@
                     <thead>
                         <tr>
                             <th>Transacciones totales exitosas</th>
+                            <th>Total de registros filtrados</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td class="h5">$ {{ number_format($totalAmount) }} USD</td>
+                            <td class="h5">{{ $subscriptions->total() }} registros</td>
                         </tr>
                     </tbody>
                 </table>
@@ -301,19 +303,38 @@
 @push('scripts')
 <script>
     function selectAll(name) {
-        document.querySelectorAll(`input[name="${name}"]`).forEach(checkbox => {
+        const checkboxes = document.querySelectorAll(`input[name="${name}"]`);
+        checkboxes.forEach(checkbox => {
             checkbox.checked = true;
+            // Disparar evento change para activar cualquier listener
+            checkbox.dispatchEvent(new Event('change', { bubbles: true }));
         });
     }
     
     function deselectAll(name) {
-        document.querySelectorAll(`input[name="${name}"]`).forEach(checkbox => {
+        const checkboxes = document.querySelectorAll(`input[name="${name}"]`);
+        checkboxes.forEach(checkbox => {
             checkbox.checked = false;
+            // Disparar evento change para activar cualquier listener
+            checkbox.dispatchEvent(new Event('change', { bubbles: true }));
         });
     }
 
-    // Make sure select for perPage is within the form
+    // Asegurarse que los checkboxes mantengan su estado después de la selección
     document.addEventListener('DOMContentLoaded', function() {
+        const checkboxGroups = ['provider_type[]', 'source_type[]', 'source[]', 'tags[]'];
+        
+        checkboxGroups.forEach(group => {
+            const checkboxes = document.querySelectorAll(`input[name="${group}"]`);
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    // Asegurarse que el estado del checkbox se mantenga
+                    this.checked = this.checked;
+                });
+            });
+        });
+
+        // Make sure select for perPage is within the form
         const perPageSelect = document.querySelector('select[name="perPage"]');
         if (perPageSelect && !perPageSelect.form) {
             document.getElementById('filterForm').appendChild(perPageSelect.parentNode.cloneNode(true));

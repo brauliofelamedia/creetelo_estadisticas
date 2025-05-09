@@ -167,7 +167,7 @@ class SyncController extends Controller
                         $existingContacts->put($item->contactId, $contact);
                     }
                 }
-
+                
                 $sub = new Subscription();
                 $sub->_id = $item->_id ?? '';
                 $sub->contactId = $item->contactId ?? '';
@@ -181,9 +181,11 @@ class SyncController extends Controller
                 $sub->entity_type = $item->entityType ?? '';
                 $sub->entity_id = $item->entityId ?? '';
                 $sub->provider_type = $item->paymentProviderType ?? '';
+                $sub->provider_type = $item->paymentProviderType ?? '';
                 $sub->source_type = $item->entitySourceType ?? '';
                 $sub->subscription_id = $item->subscriptionId ?? '';
                 $sub->create_time = Carbon::parse($item->createdAt) ?? '';
+                $sub->cancelled_at = @$item->cancelledAt ? Carbon::parse($item->cancelledAt)->format('Y-m-d') : null;
                 $sub->contact_id = $contact ? $contact->id : null;
                 $sub->save();
             }
@@ -293,7 +295,8 @@ class SyncController extends Controller
                             continue;
                         }
                     }
-                    
+                
+                    $email_explode = explode('@', $data[0]['email']);
                     $countryName = !empty($data[0]['country']) ? Country::where('iso2', $data[0]['country'])->value('name') : null;
                     $contact->country = $countryName ?? $data[0]['country'] ?? null;
                     $contact->source = $data[0]['source'] ?? null;
@@ -303,8 +306,8 @@ class SyncController extends Controller
                     $contact->location_id = $data[0]['locationId'] ?? null;
                     $contact->date_added = isset($data[0]['dateAdded']) ? Carbon::parse($data[0]['dateAdded']) : null;
                     $contact->date_update = isset($data[0]['dateUpdated']) ? Carbon::parse($data[0]['dateUpdated']) : null;
-                    $contact->first_name = $data[0]['firstNameLowerCase'] ?? null;
-                    $contact->last_name = $data[0]['lastNameLowerCase'] ?? null;
+                    $contact->first_name = ucfirst($data[0]['firstNameLowerCase']) ?? $email_explode[0];
+                    $contact->last_name = ucfirst($data[0]['lastNameLowerCase']) ?? null;
                     $contact->email = $data[0]['email'] ?? null;
                     $contact->website = $data[0]['website'] ?? null;
                     $contact->dnd = $data[0]['dnd'] ?? null;

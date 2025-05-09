@@ -28,6 +28,7 @@ return new class extends Migration
             $table->string('subscription_id')->nullable();
             $table->date('start_date')->nullable();
             $table->date('end_date')->nullable();
+            $table->date('cancelled_at')->nullable();
             $table->date('create_time')->nullable();
 
             //Contacts

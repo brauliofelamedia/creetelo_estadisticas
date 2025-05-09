@@ -57,7 +57,7 @@ class Contact extends Model
 
     public function transactions()
     {
-        return $this->hasMany(Transaction::class, 'email', 'email');
+        return $this->hasMany(Transaction::class, 'contact_id', 'contactId');
     }
 
     public function subscription()

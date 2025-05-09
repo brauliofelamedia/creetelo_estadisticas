@@ -100,7 +100,7 @@
                 <div class="card-body p-20">
                     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
                     <div>
-                        <p class="fw-medium text-primary-light mb-1">Contactos totales</p>
+                        <p class="fw-medium text-primary-light mb-1">Contactos nuevos</p>
                         <h6 class="mb-0">{{number_format($currentContacts,0)}}</h6>
                     </div>
                     <div class="w-50-px h-50-px bg-cyan rounded-circle d-flex justify-content-center align-items-center">
@@ -116,10 +116,25 @@
                     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
                     <div>
                         <p class="fw-medium text-primary-light mb-1">Membresías activas</p>
-                        <h6 class="mb-0">{{number_format($activeMemberships,0)}}</h6>
+                        <h6 class="mb-0">{{$activeMemberships->count()}}</h6>
                     </div>
                     <div class="w-50-px h-50-px bg-success rounded-circle d-flex justify-content-center align-items-center">
                         <iconify-icon icon="mdi:account-check" class="text-white text-2xl mb-0"></iconify-icon>
+                    </div>
+                    </div>
+                </div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="card shadow-none border bg-gradient-start-2 h-100">
+                <div class="card-body p-20">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                    <div>
+                        <p class="fw-medium text-primary-light mb-1">Membresías canceladas</p>
+                        <h6 class="mb-0">{{$canceledSubscriptions->count()}}</h6>
+                    </div>
+                    <div class="w-50-px h-50-px bg-danger rounded-circle d-flex justify-content-center align-items-center">
+                        <iconify-icon icon="mdi:account-cancel" class="text-white text-2xl mb-0"></iconify-icon>
                     </div>
                     </div>
                 </div>
@@ -131,7 +146,7 @@
                     <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
                     <div>
                         <p class="fw-medium text-primary-light mb-1">Ingresos</p>
-                        <h6 class="mb-0">${{number_format(isset($totalCurrentPeriod) ? $totalCurrentPeriod : $totalCurrentYear,0)}} USD</h6>
+                        <h6 class="mb-0">${{number_format($totalAmount,0)}} USD</h6>
                     </div>
                     <div class="w-50-px h-50-px bg-purple rounded-circle d-flex justify-content-center align-items-center">
                         <iconify-icon icon="fa-solid:award" class="text-white text-2xl mb-0"></iconify-icon>
@@ -147,7 +162,7 @@
                         <div>
                             <p class="fw-medium text-primary-light mb-1">Tasa de cancelación</p>
                             <h6 class="mb-0">{{number_format($cancellationRate, 1)}}%</h6>
-                            <small style="display: none;" class="text-muted">{{$cancelledCount}} de {{$totalTransactions}}</small>
+                            <small class="text-muted">{{$canceledSubscriptions->count()}} de {{$totalTransactions}}</small>
                         </div>
                         <div class="w-50-px h-50-px bg-orange rounded-circle d-flex justify-content-center align-items-center">
                             <iconify-icon icon="mdi:cancel-bold" class="text-white text-2xl mb-0"></iconify-icon>
@@ -201,37 +216,37 @@
                             <li class="d-flex align-items-center gap-2">
                                 <span class="w-12-px h-12-px radius-2 bg-success-main"></span>
                                 <span class="text-secondary-light text-sm fw-normal">
-                                    Activos: <span class="text-success fw-semibold">{{number_format($activeSubscriptions,0)}}</span>
+                                    Activos: <span class="text-success fw-semibold">{{ $activeSubscriptions->count()}}</span>
                                 </span>
                             </li>
                             <li class="d-flex align-items-center gap-2">
                                 <span class="w-12-px h-12-px radius-2 bg-danger"></span>
                                 <span class="text-secondary-light text-sm fw-normal">
-                                    Cancelados: <span class="text-danger fw-semibold">{{number_format($canceledSubscriptions,0)}}</span>
+                                    Cancelados: <span class="text-danger fw-semibold">{{$canceledSubscriptions->count()}}</span>
                                 </span>
                             </li>
                             <li class="d-flex align-items-center gap-2">
                                 <span class="w-12-px h-12-px radius-2 bg-info"></span>
                                 <span class="text-secondary-light text-sm fw-normal">
-                                    Prueba: <span class="text-info fw-semibold">{{number_format($trialingSubscriptions,0)}}</span>
+                                    Prueba: <span class="text-info fw-semibold">{{$trialingSubscriptions->count()}}</span>
                                 </span>
                             </li>
                             <li class="d-flex align-items-center gap-2">
                                 <span class="w-12-px h-12-px radius-2 bg-warning"></span>
                                 <span class="text-secondary-light text-sm fw-normal">
-                                    Pausados: <span class="text-warning fw-semibold">{{number_format($pausedSubscriptions,0)}}</span>
+                                    Pausados: <span class="text-warning fw-semibold">{{$pausedSubscriptions->count()}}</span>
                                 </span>
                             </li>
                             <li class="d-flex align-items-center gap-2">
                                 <span class="w-12-px h-12-px radius-2 bg-secondary"></span>
                                 <span class="text-secondary-light text-sm fw-normal">
-                                    Vencidos: <span class="text-secondary fw-semibold">{{number_format($pastDueSubscriptions,0)}}</span>
+                                    Vencidos: <span class="text-secondary fw-semibold">{{$pastDueSubscriptions->count()}}</span>
                                 </span>
                             </li>
                             <li class="d-flex align-items-center gap-2">
                                 <span class="w-12-px h-12-px radius-2 bg-muted"></span>
                                 <span class="text-secondary-light text-sm fw-normal">
-                                    Expirados: <span class="text-muted fw-semibold">{{number_format($incompleteExpiredSubscriptions,0)}}</span>
+                                    Expirados: <span class="text-muted fw-semibold">{{$incompleteExpiredSubscriptions->count()}}</span>
                                 </span>
                             </li>
                         </ul>
@@ -513,6 +528,7 @@
     };
     var chart = new ApexCharts(document.querySelector("#chart"), options);
     chart.render();
+    
     var dailyOptions = {
         series: [
             {
@@ -548,7 +564,7 @@
         },
         fill: {
             type: 'gradient',
-            colors: ['#487FFF', '#FF9F29'], // Colors will be applied in order of series
+            colors: ['#487FFF', '#FF9F29'],
             gradient: {
                 shade: 'light',
                 type: 'vertical',
@@ -578,7 +594,7 @@
                     fontSize: "12px"
                 },
                 offsetX: -10,
-                show: false, // Hide the y-axis labels
+                show: false,
             },
             axisBorder: {
                 show: false
@@ -610,12 +626,12 @@
     // ================================ Contact Status Donut chart Start ================================
     var contactStatusOptions = {
       series: [
-        {{$activeSubscriptions}}, 
-        {{$canceledSubscriptions}}, 
-        {{$trialingSubscriptions}}, 
-        {{$pausedSubscriptions}}, 
-        {{$pastDueSubscriptions}}, 
-        {{$incompleteExpiredSubscriptions}}
+        {{$activeSubscriptions->count()}}, 
+        {{$canceledSubscriptions->count()}}, 
+        {{$trialingSubscriptions->count()}}, 
+        {{$pausedSubscriptions->count()}}, 
+        {{$pastDueSubscriptions->count()}}, 
+        {{$incompleteExpiredSubscriptions->count()}}
       ],
       colors: ['#28a745', '#dc3545', '#17a2b8', '#ffc107', '#6c757d', '#ced4da'],
       labels: ['Activos', 'Cancelados', 'Prueba', 'Pausados', 'Vencidos', 'Expirados'],
@@ -836,7 +852,7 @@
                 axisTicks: {
                     show: false,
                 },
-                seriesName: "Ticket Promedio"
+                seriesName: "Ticket promedio"
             },
             {
                 opposite: true,
@@ -846,7 +862,7 @@
                 },
                 min: 0,
                 labels: {
-                    show: false,  // Hide the labels on the second y-axis
+                    show: false,
                 },
                 axisBorder: {
                     show: false
