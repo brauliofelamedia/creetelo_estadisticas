@@ -10,11 +10,12 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use App\Models\Subscription;
 use App\Models\Contact;
+use Illuminate\Support\Facades\Auth;
 
 class AdminController extends Controller
 {
     public function index(Request $request)
-    {   
+    {  
         try {
             // Get filter dates from request with validation
             $startDate = $request->has('monthYearStart') 

@@ -12,6 +12,7 @@ use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\SyncController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\WebhookController;
 use Illuminate\Support\Facades\Route;
 use App\Models\User;
 use App\Mail\WelcomeMail;
@@ -147,5 +148,4 @@ Route::get('/clear-cache', function() {
     return "Toda la caché ha sido eliminada correctamente.";
 })->name('clear.cache');
 
-
-
+Route::post('webhook/update-cancellation-date-subscription', [WebhookController::class, 'updateCancellationDateSubscription'])->name('webhook.subscription.update.date');
