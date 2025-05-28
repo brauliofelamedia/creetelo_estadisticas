@@ -149,4 +149,4 @@ Route::get('/clear-cache', function() {
 })->name('clear.cache');
 
 Route::post('webhook/update-cancellation-date-subscription', [WebhookController::class, 'updateCancellationDateSubscription'])->name('webhook.subscription.update.date');
-Route::post('change', [SubscriptionController::class, 'change_status'])->name('subscriptions.change');
+Route::post('webhook/change', [SubscriptionController::class, 'change_status'])->name('webhook.subscriptions.change');
