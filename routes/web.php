@@ -91,7 +91,6 @@ Route::middleware('auth')->prefix('dashboard')->group(function () {
         Route::get('get',[SubscriptionController::class,'get'])->name('subscriptions.update');
         Route::get('getById/{id}',[SubscriptionController::class,'getById'])->name('subscriptions.getById');
         Route::get('export', [SubscriptionController::class, 'export'])->name('subscriptions.export');
-        Route::post('change', [SubscriptionController::class, 'change_status'])->name('subscriptions.change');
     });
 
     //Filters
@@ -150,3 +149,4 @@ Route::get('/clear-cache', function() {
 })->name('clear.cache');
 
 Route::post('webhook/update-cancellation-date-subscription', [WebhookController::class, 'updateCancellationDateSubscription'])->name('webhook.subscription.update.date');
+Route::post('change', [SubscriptionController::class, 'change_status'])->name('subscriptions.change');
