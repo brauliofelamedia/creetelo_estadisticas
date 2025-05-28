@@ -239,6 +239,37 @@
                                                 <iconify-icon icon="mdi:email"></iconify-icon>
                                             </a>
                                         @endif
+                                        <button type="button" class="btn btn-sm btn-warning" 
+                                                onclick="confirmCancelSubscription({{ $subscription->id }})"
+                                                title="Cancelar subscripción">
+                                            <iconify-icon icon="mdi:calendar"></iconify-icon>
+                                        </button>
+
+                                        <!-- Modal -->
+                                        <div class="modal fade" id="cancelModal{{$subscription->id}}" tabindex="-1" aria-hidden="true">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <form action="{{ route('subscriptions.change') }}" method="POST">
+                                                        @csrf
+                                                        <input type="hidden" name="contact_id" value="{{ $subscription->contact->contact_id }}">
+                                                        <div class="modal-header">
+                                                            <h5 class="modal-title">Cancelar subscripción</h5>
+                                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                        </div>
+                                                        <div class="modal-body">
+                                                            <div class="mb-3">
+                                                                <label class="form-label">Fecha de cancelación</label>
+                                                                <input type="date" name="cancellation_date" class="form-control" value="{{ date('Y-m-d') }}" required>
+                                                            </div>
+                                                        </div>
+                                                        <div class="modal-footer">
+                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                                                            <button type="submit" class="btn btn-success">Cancelar la subscripción</button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </td>
                             </tr>
@@ -301,7 +332,28 @@
 @endpush
 
 @push('scripts')
+<!-- SweetAlert2 CDN -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <script>
+    function confirmCancelSubscription(subscriptionId) {
+        Swal.fire({
+            title: '¿Estás seguro?',
+            text: "Esto no se puede deshacer",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Sí, cancelar',
+            cancelButtonText: 'No, cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Show the modal if confirmed
+                $(`#cancelModal${subscriptionId}`).modal('show');
+            }
+        });
+    }
+
     function selectAll(name) {
         const checkboxes = document.querySelectorAll(`input[name="${name}"]`);
         checkboxes.forEach(checkbox => {

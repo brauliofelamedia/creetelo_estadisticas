@@ -404,4 +404,26 @@ class SubscriptionController extends Controller
         
         return Excel::download(new SubscriptionExport($query), $filename);
     }
+
+    public function change_status(Request $request)
+    {
+        $contactId = $request->input('contact_id');
+        $contact = Contact::where('contact_id',$contactId)->with('subscription')->first();
+        if (!$contact) {
+            return redirect()->back()->with('danger', 'El contacto no existe');
+        }
+        $subscription = Subscription::where('contactId', $contactId)->first();
+        if (!$subscription) {
+            return redirect()->back()->with('danger', 'La subscripción no existe');
+        }
+
+        // Update related subscription status and cancelled date
+        if ($subscription) {
+            $subscription->status = 'canceled';
+            $subscription->cancelled_at = Carbon::parse($request->cancellation_date)->format('Y-m-d');
+            $subscription->save();
+        }
+
+        return redirect()->back()->with('success', 'Se ha cancelado la subscripción del usuario');
+    }
 }
