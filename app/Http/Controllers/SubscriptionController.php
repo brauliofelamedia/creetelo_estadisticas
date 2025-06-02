@@ -456,32 +456,32 @@ class SubscriptionController extends Controller
         ]);
         
         // Get the contact ID from the request
-        $contactId = $request->input('id');
+        $contactEmail = $request->input('email');
         
-        if (!$contactId) {
+        if (!$contactEmail) {
             return response()->json([
                 'success' => false,
-                'message' => 'ID de contacto no proporcionado',
+                'message' => 'Email de contacto no proporcionado',
                 'request_data' => $request->all()
             ], 400);
         }
         
-        $contact = Contact::where('contact_id', $contactId)->first();
+        $contact = Contact::where('email', $contactEmail)->first();
         
         if (!$contact) {
             return response()->json([
                 'success' => false,
                 'message' => 'El contacto no existe',
-                'contact_id' => $contactId
+                'contact_id' => $contactEmail
             ], 404);
         }
         
-        $subscription = Subscription::where('contactId', $contact->id)->first();
+        $subscription = Subscription::where('contactId', $contact->contact_id)->first();
         if (!$subscription) {
             return response()->json([
                 'success' => false,
                 'message' => 'La subscripción no existe',
-                'contact_id' => $contact->id
+                'contact_id' => $contact->contact_id
             ], 404);
         }
         
