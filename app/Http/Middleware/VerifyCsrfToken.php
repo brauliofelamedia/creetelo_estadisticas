@@ -12,8 +12,8 @@ class VerifyCsrfToken extends Middleware
      * @var array<int, string>
      */
     protected $except = [
-        'dashboard/subscriptions/change',
-        // You can also use the route with a wildcard if needed
-        // 'dashboard/subscriptions/*'
+        'api/webhook/change',
+        'api/webhook/*',
+        'api/*'
     ];
 }

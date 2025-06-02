@@ -28,7 +28,7 @@ class WebhookController extends Controller
             // Update related subscription status and cancelled date
             if ($subscription) {
                 $subscription->status = 'canceled';
-                $subscription->cancelled_at = Carbon::parse($request->cancellation_date)->format('Y-m-d');
+                $subscription->cancelled_at = Carbon::parse($date_cancelled)->format('Y-m-d');
                 $subscription->save();
             }
 

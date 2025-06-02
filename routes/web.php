@@ -91,6 +91,7 @@ Route::middleware('auth')->prefix('dashboard')->group(function () {
         Route::get('get',[SubscriptionController::class,'get'])->name('subscriptions.update');
         Route::get('getById/{id}',[SubscriptionController::class,'getById'])->name('subscriptions.getById');
         Route::get('export', [SubscriptionController::class, 'export'])->name('subscriptions.export');
+        Route::post('change', [SubscriptionController::class, 'change'])->name('subscriptions.change');
     });
 
     //Filters

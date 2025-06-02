@@ -68,8 +68,9 @@ class SubscriptionController extends Controller
         // Apply filters
         if (!empty($search)) {
             $query->whereHas('contact', function($q) use ($search) {
-                $q->where('first_name', 'like', '%' . $search . '%')
-                  ->orWhere('last_name', 'like', '%' . $search . '%');
+            $q->where('first_name', 'like', '%' . $search . '%')
+              ->orWhere('last_name', 'like', '%' . $search . '%')
+              ->orWhere('email', 'like', '%' . $search . '%');
             });
         }
 
@@ -90,11 +91,26 @@ class SubscriptionController extends Controller
         }
 
         if ($startDate && $endDate) {
-            $query->where(function($q) use ($startDate, $endDate) {
-                $q->whereBetween('start_date', [
+            $query->where(function($q) use ($startDate, $endDate, $status) {
+            if (in_array('canceled', $status)) {
+                // If status includes 'canceled', filter by cancelled_at date
+                $q->where(function($subQ) use ($startDate, $endDate) {
+                $subQ->where('status', 'canceled')
+                     ->whereBetween('cancelled_at', [
                     Carbon::parse($startDate)->startOfDay(),
                     Carbon::parse($endDate)->endOfDay()
-                ]);
+                     ]);
+                });
+            }
+            
+            // For all other statuses, filter by start_date
+            $q->orWhere(function($subQ) use ($startDate, $endDate, $status) {
+                $subQ->whereNotIn('status', ['canceled'])
+                 ->whereBetween('start_date', [
+                    Carbon::parse($startDate)->startOfDay(),
+                    Carbon::parse($endDate)->endOfDay()
+                 ]);
+            });
             });
         }
         
@@ -405,16 +421,18 @@ class SubscriptionController extends Controller
         return Excel::download(new SubscriptionExport($query), $filename);
     }
 
-    public function change_status(Request $request)
+    public function change(Request $request)
     {
         $contactId = $request->input('contact_id');
         $contact = Contact::where('contact_id',$contactId)->with('subscription')->first();
+        
         if (!$contact) {
-            return redirect()->back()->with('danger', 'El contacto no existe');
+            return redirect()->back()->with('error', 'El contacto no existe');
         }
+        
         $subscription = Subscription::where('contactId', $contactId)->first();
         if (!$subscription) {
-            return redirect()->back()->with('danger', 'La subscripción no existe');
+            return redirect()->back()->with('error', 'La subscripción no existe');
         }
 
         // Update related subscription status and cancelled date
@@ -425,5 +443,56 @@ class SubscriptionController extends Controller
         }
 
         return redirect()->back()->with('success', 'Se ha cancelado la subscripción del usuario');
+    }
+
+    //API Routes
+    public function change_status(Request $request)
+    {
+        // Log the incoming request data to debug what's being received
+        Log::info('Webhook request received', [
+            'all' => $request->all(),
+            'headers' => $request->headers->all(),
+            'content' => $request->getContent()
+        ]);
+        
+        // Get the contact ID from the request
+        $contactId = $request->input('id');
+        
+        if (!$contactId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ID de contacto no proporcionado',
+                'request_data' => $request->all()
+            ], 400);
+        }
+        
+        $contact = Contact::where('contact_id', $contactId)->first();
+        
+        if (!$contact) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El contacto no existe',
+                'contact_id' => $contactId
+            ], 404);
+        }
+        
+        $subscription = Subscription::where('contactId', $contact->id)->first();
+        if (!$subscription) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La subscripción no existe',
+                'contact_id' => $contact->id
+            ], 404);
+        }
+        
+        $subscription->status = 'canceled';
+        $subscription->cancelled_at = Carbon::now()->format('Y-m-d');
+        $subscription->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Se ha cancelado la subscripción del usuario',
+            'subscription' => $subscription
+        ]);
     }
 }
