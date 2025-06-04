@@ -27,16 +27,11 @@
                         <div class="dropdown-menu p-3" aria-labelledby="statusFilterDropdown" style="min-width: 250px;">
                             <div class="status-checkboxes">
                                 <div class="form-check mb-2">
-                                    <input class="form-check-input status-checkbox-all" type="checkbox" name="status[]" value="*" id="statusAll" {{ in_array('*', (array)request('status')) ? 'checked' : '' }}>
-                                    <label class="form-check-label" for="statusAll">Todos los estatus</label>
-                                </div>
-                                <div class="dropdown-divider"></div>
-                                <div class="form-check mb-2">
                                     <input class="form-check-input status-checkbox" type="checkbox" name="status[]" value="active" id="status-active" {{ in_array('active', $status ?? []) ? 'checked' : '' }}>
                                     <label class="form-check-label" for="status-active">Activo</label>
                                 </div>
                                 <div class="form-check mb-2">
-                                    <input class="form-check-input status-checkbox" type="checkbox" name="status[]" value="canceled" id="status-canceled" {{ in_array('canceled', $status ?? []) ? 'checked' : '' }}>
+                                    <input class="form-check-input status-checkbox status-canceled" type="checkbox" name="status[]" value="canceled" id="status-canceled" {{ in_array('canceled', $status ?? []) ? 'checked' : '' }}>
                                     <label class="form-check-label" for="status-canceled">Cancelado</label>
                                 </div>
                                 <div class="form-check mb-2">
@@ -148,10 +143,10 @@
                         <div>
                             <h6 class="mb-3">Tipo de fuente</h6>
                             <div class="d-flex flex-column w-100">
-                                @if(empty($filteredSourceNames))
-                                    <p class="text-muted">Seleccione al menos un tipo de fuente para ver las membresías disponibles.</p>
+                                @if(empty($allSources))
+                                    <p class="text-muted">No hay fuentes disponibles.</p>
                                 @else
-                                    @foreach($filteredSourceNames as $sourceName)
+                                    @foreach($allSources as $sourceName)
                                         <div class="form-check mb-2" style="font-size: 0.9rem;">
                                             <input name="source[]" class="form-check-input form-check-input-sm" type="checkbox" value="{{ $sourceName }}" id="source-{{ $loop->index }}"
                                                 {{ in_array($sourceName, $source ?? []) ? 'checked' : '' }}>
@@ -425,6 +420,51 @@
                 checkbox.checked = false;
             });
         });
+
+        // Manejo de la exclusión mutua de los checkboxes de estados
+        const canceledCheckbox = document.getElementById('status-canceled');
+        const otherStatusCheckboxes = document.querySelectorAll('.status-checkbox:not(.status-canceled), .status-checkbox-all');
+        
+        // Función para manejar el cambio en el checkbox de Cancelado
+        function handleCanceledChange() {
+            if (canceledCheckbox.checked) {
+                // Si Cancelado está seleccionado, deshabilitar los demás
+                otherStatusCheckboxes.forEach(checkbox => {
+                    checkbox.checked = false;
+                    checkbox.disabled = true;
+                });
+            } else {
+                // Si Cancelado está deseleccionado, habilitar los demás
+                otherStatusCheckboxes.forEach(checkbox => {
+                    checkbox.disabled = false;
+                });
+            }
+        }
+        
+        // Función para manejar el cambio en los otros checkboxes
+        function handleOtherStatusChange() {
+            const anyOtherChecked = Array.from(otherStatusCheckboxes).some(checkbox => checkbox.checked);
+            
+            if (anyOtherChecked) {
+                // Si algún otro está seleccionado, deshabilitar Cancelado
+                canceledCheckbox.checked = false;
+                canceledCheckbox.disabled = true;
+            } else {
+                // Si ningún otro está seleccionado, habilitar Cancelado
+                canceledCheckbox.disabled = false;
+            }
+        }
+        
+        // Asignar los event listeners
+        canceledCheckbox.addEventListener('change', handleCanceledChange);
+        
+        otherStatusCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', handleOtherStatusChange);
+        });
+        
+        // Ejecutar la verificación inicial para establecer el estado correcto al cargar la página
+        handleCanceledChange();
+        handleOtherStatusChange();
     });
 </script>
 @endpush

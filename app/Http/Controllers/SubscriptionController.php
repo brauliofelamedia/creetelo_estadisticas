@@ -195,6 +195,7 @@ class SubscriptionController extends Controller
             'availableTags',
             'filteredSourceNames',
             'search',
+            'allSources',
             'perPage',
             'status',
             'source',
