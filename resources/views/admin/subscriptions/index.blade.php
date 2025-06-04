@@ -249,11 +249,12 @@
                                             <div class="modal-dialog">
                                                 <div class="modal-content">
                                                     <div class="modal-header">
-                                                        <h5 class="modal-title">Seleccionar fecha de cancelación</h5>
+                                                        <h5 class="modal-title">Fecha de cancelación</h5>
                                                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                     </div>
                                                     <div class="modal-body">
                                                         <div class="mb-3">
+                                                            <input type="hidden" name="subscription_id" value="{{ $subscription->id }}">
                                                             <label class="form-label">Fecha de cancelación</label>
                                                             <input type="date" id="cancellation_date_{{$subscription->id}}" class="form-control" value="{{ date('Y-m-d') }}" required>
                                                         </div>
@@ -269,6 +270,7 @@
                                         <form id="cancelForm{{$subscription->id}}" action="{{ route('subscriptions.change') }}" method="POST" style="display: none;">
                                             @csrf
                                             <input type="hidden" name="contact_id" value="{{ $subscription->contact->contact_id }}">
+                                            <input type="hidden" name="subscription_id" value="{{ $subscription->id }}">
                                             <input type="hidden" name="cancellation_date" id="cancellation_date_hidden_{{$subscription->id}}">
                                         </form>
                                     </div>

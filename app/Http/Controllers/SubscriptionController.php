@@ -424,13 +424,15 @@ class SubscriptionController extends Controller
     public function change(Request $request)
     {
         $contactId = $request->input('contact_id');
+        $subscriptionId = $request->input('subscription_id');
         $contact = Contact::where('contact_id',$contactId)->with('subscription')->first();
         
         if (!$contact) {
             return redirect()->back()->with('error', 'El contacto no existe');
         }
+
+        $subscription = Subscription::where('contactId', $contactId)->where('id',$subscriptionId)->first();
         
-        $subscription = Subscription::where('contactId', $contactId)->first();
         if (!$subscription) {
             return redirect()->back()->with('error', 'La subscripción no existe');
         }
