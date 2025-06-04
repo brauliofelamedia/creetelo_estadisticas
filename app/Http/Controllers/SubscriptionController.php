@@ -478,7 +478,10 @@ class SubscriptionController extends Controller
             ], 404);
         }
         
-        $subscription = Subscription::where('contactId', $contact->contact_id)->first();
+        $subscription = Subscription::where('contactId', $contact->contact_id)
+            ->orderBy('created_at', 'desc')
+            ->first();
+            
         if (!$subscription) {
             return response()->json([
                 'success' => false,
